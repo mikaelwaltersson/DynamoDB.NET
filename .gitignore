@@ -1,0 +1,10 @@
+bin/
+obj/
+
+.coverage/
+__mismatch__/
+
+.DS_Store
+
+
+

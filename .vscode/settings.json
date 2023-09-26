@@ -1,0 +1,12 @@
+{
+    "editor.detectIndentation": false,
+    "editor.insertSpaces": true,
+    "editor.tabSize": 4,
+    "files.exclude": {
+        "**/.DS_Store": true,
+        "**/.git": true,
+        "**/.coverage": true,
+        "**/bin": true,
+        "**/obj": true
+    }
+}

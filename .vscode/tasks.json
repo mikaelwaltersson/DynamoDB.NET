@@ -1,0 +1,30 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "test",
+            "command": "dotnet",
+            "type": "process",
+            "args": [
+                "test",
+                "${workspaceFolder}/tests/DynamoDB.Net.Tests.csproj",
+                "--logger:\"console;verbosity=detailed\"",
+                "/p:CollectCoverage=true",
+                "/p:CoverletOutputFormat=cobertura",
+                "/p:CoverletOutput=.coverage/cobertura.xml"
+            ],
+            "problemMatcher": "$msCompile",
+        },
+        {
+            "label": "test-coverage-report",
+            "command": "reportgenerator",
+            "dependsOn": ["test"],
+            "args": [
+                "-reporttypes:Html",
+                "-reports:${workspaceFolder}/tests/.coverage/cobertura.xml",
+                "-targetdir:${workspaceFolder}/tests/.coverage"
+            ],
+            "problemMatcher": "$msCompile",
+        }
+    ]
+}
