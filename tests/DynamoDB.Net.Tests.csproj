@@ -5,11 +5,11 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
-    <RootNamespace>DynamoDB.NET.Tests</RootNamespace>
+    <RootNamespace>DynamoDB.Net.Tests</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="../src/DynamoDB.net.csproj" />
+    <ProjectReference Include="../src/DynamoDB.Net.csproj" />
   </ItemGroup>
 
   <ItemGroup>

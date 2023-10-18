@@ -1,0 +1,78 @@
+﻿{
+  "userId": {
+    "B": null,
+    "BOOL": false,
+    "IsBOOLSet": false,
+    "BS": [],
+    "L": [],
+    "IsLSet": false,
+    "M": {},
+    "IsMSet": false,
+    "N": null,
+    "NS": [],
+    "NULL": false,
+    "S": "00000000-0000-0000-0000-000000000001",
+    "SS": []
+  },
+  "timestamp": {
+    "B": null,
+    "BOOL": false,
+    "IsBOOLSet": false,
+    "BS": [],
+    "L": [],
+    "IsLSet": false,
+    "M": {},
+    "IsMSet": false,
+    "N": null,
+    "NS": [],
+    "NULL": false,
+    "S": "2022-10-18T16:42Z",
+    "SS": []
+  },
+  "roleIds": {
+    "B": null,
+    "BOOL": false,
+    "IsBOOLSet": false,
+    "BS": [],
+    "L": [
+      {
+        "B": null,
+        "BOOL": false,
+        "IsBOOLSet": false,
+        "BS": [],
+        "L": [],
+        "IsLSet": false,
+        "M": {},
+        "IsMSet": false,
+        "N": null,
+        "NS": [],
+        "NULL": false,
+        "S": "00000000-0000-0000-0000-100000000001",
+        "SS": []
+      },
+      {
+        "B": null,
+        "BOOL": false,
+        "IsBOOLSet": false,
+        "BS": [],
+        "L": [],
+        "IsLSet": false,
+        "M": {},
+        "IsMSet": false,
+        "N": null,
+        "NS": [],
+        "NULL": false,
+        "S": "00000000-0000-0000-0000-100000000001",
+        "SS": []
+      }
+    ],
+    "IsLSet": true,
+    "M": {},
+    "IsMSet": false,
+    "N": null,
+    "NS": [],
+    "NULL": false,
+    "S": null,
+    "SS": []
+  }
+}

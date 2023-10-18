@@ -4,17 +4,19 @@ using DynamoDB.Net.Model;
 using DynamoDB.Net.Serialization;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
-using Snapshooter.Xunit;
 using Xunit;
 
-namespace DynamoDB.NET.Tests.AcceptanceTests
+namespace DynamoDB.Net.Tests.AcceptanceTests
 {
-    public partial class DynamoDBClientTests
+    public partial class DynamoDBClientTests : IAsyncLifetime
     {
-        [Fact]
-        public async Task CanCreateTables()
+        IServiceProvider serviceProvider = null!;
+        IAmazonDynamoDB dynamoDB = null!;
+        IDynamoDBClient dynamoDBClient = null!;
+        string tableName = null!;
+
+        async Task IAsyncLifetime.InitializeAsync()
         {
- 
             var services = new ServiceCollection();
 
             services.AddOptions();
@@ -33,44 +35,32 @@ namespace DynamoDB.NET.Tests.AcceptanceTests
             services.Configure<DynamoDBClientOptions>(
                 options => 
                 {
-                    options.TableNamePrefix = "acceptance-tests-";
+                    options.TableNamePrefix = $"acceptance-tests-{Guid.NewGuid()}";
                 }
             );
 
-            var serviceProvider = services.BuildServiceProvider();
+            serviceProvider = services.BuildServiceProvider();
 
-            var dynamoDb = serviceProvider.GetRequiredService<IAmazonDynamoDB>();
-            var dynamoDbClientOptions = serviceProvider.GetRequiredService<IOptions<DynamoDBClientOptions>>();
-            var client = serviceProvider.GetRequiredService<IDynamoDBClient>();
-
-            var table = TableDescription.Get(typeof(TestModels.UserPost), JsonContractResolver.DefaultDynamoDB);
-            var createTableRequest = table.GetCreateTableRequest(dynamoDbClientOptions.Value);
+            dynamoDB = serviceProvider.GetRequiredService<IAmazonDynamoDB>();
             
-            var result = await dynamoDb.CreateTableAsync(createTableRequest);
-            try 
-            {
-                Assert.Equal("acceptance-tests-user-posts", result.TableDescription.TableName);
+            var createTableRequest = 
+                TableDescription.Get(
+                    typeof(TestModels.UserPost), 
+                    JsonContractResolver.DefaultDynamoDB).
+                        GetCreateTableRequest(
+                            serviceProvider.GetRequiredService<IOptions<DynamoDBClientOptions>>().Value);
 
-                var item1 = await client.PutAsync(
-                    new TestModels.UserPost 
-                    { 
-                        UserId = new Guid("00000000-0000-0000-0000-000000000001"), 
-                        Timestamp = new DateTime(2022, 10, 18, 16, 42, 0),
-                        RoleIds =
-                        {
-                            new Guid("00000000-0000-0000-0000-000000000002"), 
-                            new Guid("00000000-0000-0000-0000-000000000003")
-                        }
-                    });
-                var item2 = await client.TryGetAsync(new PrimaryKey<TestModels.UserPost>(new Guid("00000000-0000-0000-0000-000000000001"), new DateTime(2022, 10, 18, 16, 42, 0)));
+            await dynamoDB.CreateTableAsync(createTableRequest);
 
-                Assert.NotNull(item2);
-                Snapshot.Match(item1);
-            }
-            finally 
-            {
-                await dynamoDb.DeleteTableAsync(result.TableDescription.TableName);
-            }
+            dynamoDBClient = serviceProvider.GetRequiredService<IDynamoDBClient>();
+            tableName = createTableRequest.TableName;
+        }
+
+        async Task IAsyncLifetime.DisposeAsync()
+        {
+            var dynamoDb = serviceProvider.GetRequiredService<IAmazonDynamoDB>();
+            
+            await dynamoDb.DeleteTableAsync(tableName);
         }
     }
 }

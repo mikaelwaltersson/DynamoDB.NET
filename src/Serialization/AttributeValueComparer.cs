@@ -5,8 +5,6 @@ using System.Linq;
 
 using Amazon.DynamoDBv2.Model;
 
-using DynamoDB.Net.Model;
-
 namespace DynamoDB.Net
 {
     public class AttributeValueComparer : IEqualityComparer<AttributeValue>
@@ -34,7 +32,7 @@ namespace DynamoDB.Net
                 else if (x.BS != null && x.BS.Count > 0)
                     return y.BS != null && x.BS.SequenceEqual(y.BS, MemoryStreamComparer.Default);
                 else if (x.IsLSet)
-                    return y.IsLSet && x.L.SequenceEqual(y.L, AttributeValueComparer.Default);
+                    return y.IsLSet && x.L.SequenceEqual(y.L, Default);
                 else if (x.IsMSet)
                     return y.IsMSet && x.M.Count == y.M.Count && x.M.All(entry => y.M.TryGetValue(entry.Key, out var value) && Equals(entry.Value, value));
             }
@@ -80,7 +78,7 @@ namespace DynamoDB.Net
         {
             public static MemoryStreamComparer Default { get; } = new MemoryStreamComparer();
 
-            ArraySegment<byte> BufferOf(MemoryStream obj) => 
+            static ArraySegment<byte> BufferOf(MemoryStream obj) => 
                 obj.TryGetBuffer(out var xbuffer) 
                     ? xbuffer 
                     : new ArraySegment<byte>(obj.ToArray());

@@ -302,7 +302,7 @@ namespace DynamoDB.Net
             itemEvents.OnItemDeserialized(Deserialize<T>(attributes));
 
         PrimaryKey<T> DeserializeKey<T>(Dictionary<string, AttributeValue> attributes) where T : class =>
-            (attributes.Count == 0 ? null : Deserialize<PrimaryKey<T>>(attributes));
+            attributes.Count == 0 ? null : Deserialize<PrimaryKey<T>>(attributes);
 
         async Task<TResponse> Invoke<TRequest, TResponse>(
             Func<TRequest, CancellationToken, Task<TResponse>> operation, 

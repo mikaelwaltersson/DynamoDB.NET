@@ -38,19 +38,9 @@ namespace DynamoDB.Net.Serialization
                 typeof(float?),
                 typeof(double),
                 typeof(double?),
-                typeof(DateTime),
-                typeof(DateTime?),
-                typeof(DateTimeOffset),
-                typeof(DateTimeOffset?),
                 typeof(decimal),
                 typeof(decimal?),
-                typeof(Guid),
-                typeof(Guid?),
-                typeof(TimeSpan),
-                typeof(TimeSpan?),
-                typeof(Uri),
                 typeof(string),
-                typeof(byte[])
             };
 
         public static IEnumerable<T> GetAttributes<T>(this JsonProperty property) where T : Attribute =>

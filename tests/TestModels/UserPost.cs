@@ -1,6 +1,6 @@
 using DynamoDB.Net.Model;
 
-namespace DynamoDB.NET.Tests.TestModels
+namespace DynamoDB.Net.Tests.TestModels
 {
     [Table]
     public class UserPost

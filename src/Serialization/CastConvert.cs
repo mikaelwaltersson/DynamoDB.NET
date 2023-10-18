@@ -37,10 +37,8 @@ namespace DynamoDB.Net.Serialization
 
 
 
-        static object NoCoercionOperatorIsDefined(InvalidOperationException ex)
-        {
+        static object NoCoercionOperatorIsDefined(InvalidOperationException ex) =>
             throw ex;
-        }
 
         public static object CastTo<T>(this T value, Type objectType) => 
             compiledCastTo.GetOrAdd(Tuple.Create(typeof(T), objectType), CompileCastTo)(value);
