@@ -1,66 +1,63 @@
+namespace DynamoDB.Net.Tests.AcceptanceTests;
+
 using Amazon.DynamoDBv2;
-using DynamoDB.Net;
 using DynamoDB.Net.Model;
 using DynamoDB.Net.Serialization;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
-using Xunit;
 
-namespace DynamoDB.Net.Tests.AcceptanceTests
+public partial class DynamoDBClientTests : IAsyncLifetime
 {
-    public partial class DynamoDBClientTests : IAsyncLifetime
+    IServiceProvider serviceProvider = null!;
+    IAmazonDynamoDB dynamoDB = null!;
+    IDynamoDBClient dynamoDBClient = null!;
+    string tableName = null!;
+
+    async Task IAsyncLifetime.InitializeAsync()
     {
-        IServiceProvider serviceProvider = null!;
-        IAmazonDynamoDB dynamoDB = null!;
-        IDynamoDBClient dynamoDBClient = null!;
-        string tableName = null!;
+        var services = new ServiceCollection();
 
-        async Task IAsyncLifetime.InitializeAsync()
-        {
-            var services = new ServiceCollection();
+        services.AddOptions();
+        services.AddLogging();
+        
+        services.AddSingleton(
+            typeof(IAmazonDynamoDB),
+            serviceProvider =>
+                new AmazonDynamoDBClient(
+                    new AmazonDynamoDBConfig
+                    {
+                        ServiceURL = "http://localhost:8000"
+                    }));
 
-            services.AddOptions();
-            services.AddLogging();
-            
-            services.AddSingleton(
-                typeof(IAmazonDynamoDB),
-                serviceProvider =>
-                    new AmazonDynamoDBClient(
-                        new AmazonDynamoDBConfig
-                        {
-                            ServiceURL = "http://localhost:8000"
-                        }));
+        services.AddSingleton<IDynamoDBClient, DynamoDBClient>();
+        services.Configure<DynamoDBClientOptions>(
+            options => 
+            {
+                options.TableNamePrefix = $"acceptance-tests-{Guid.NewGuid()}";
+            }
+        );
 
-            services.AddSingleton<IDynamoDBClient, DynamoDBClient>();
-            services.Configure<DynamoDBClientOptions>(
-                options => 
-                {
-                    options.TableNamePrefix = $"acceptance-tests-{Guid.NewGuid()}";
-                }
-            );
+        serviceProvider = services.BuildServiceProvider();
 
-            serviceProvider = services.BuildServiceProvider();
+        dynamoDB = serviceProvider.GetRequiredService<IAmazonDynamoDB>();
+        
+        var createTableRequest = 
+            TableDescription.Get(
+                typeof(TestModels.UserPost), 
+                JsonContractResolver.DefaultDynamoDB).
+                    GetCreateTableRequest(
+                        serviceProvider.GetRequiredService<IOptions<DynamoDBClientOptions>>().Value);
 
-            dynamoDB = serviceProvider.GetRequiredService<IAmazonDynamoDB>();
-            
-            var createTableRequest = 
-                TableDescription.Get(
-                    typeof(TestModels.UserPost), 
-                    JsonContractResolver.DefaultDynamoDB).
-                        GetCreateTableRequest(
-                            serviceProvider.GetRequiredService<IOptions<DynamoDBClientOptions>>().Value);
+        await dynamoDB.CreateTableAsync(createTableRequest);
 
-            await dynamoDB.CreateTableAsync(createTableRequest);
+        dynamoDBClient = serviceProvider.GetRequiredService<IDynamoDBClient>();
+        tableName = createTableRequest.TableName;
+    }
 
-            dynamoDBClient = serviceProvider.GetRequiredService<IDynamoDBClient>();
-            tableName = createTableRequest.TableName;
-        }
-
-        async Task IAsyncLifetime.DisposeAsync()
-        {
-            var dynamoDb = serviceProvider.GetRequiredService<IAmazonDynamoDB>();
-            
-            await dynamoDb.DeleteTableAsync(tableName);
-        }
+    async Task IAsyncLifetime.DisposeAsync()
+    {
+        var dynamoDb = serviceProvider.GetRequiredService<IAmazonDynamoDB>();
+        
+        await dynamoDb.DeleteTableAsync(tableName);
     }
 }

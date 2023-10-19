@@ -3,7 +3,7 @@
   <PropertyGroup>
     <Authors>Mikael Waltersson</Authors>
     <Copyright>Copyright © Mikael Waltersson 2023</Copyright>
-    <TargetFramework>netcoreapp6.0</TargetFramework>
+    <TargetFramework>netcoreapp7.0</TargetFramework>
     <DebugType>portable</DebugType>
     <AssemblyName>DynamoDB.Net</AssemblyName>
     <Version>1.0.0-beta-20231018-1</Version>
@@ -24,8 +24,8 @@
 
   <ItemGroup>
     <PackageReference Include="AWSSDK.DynamoDBv2" Version="3.7.100.22" />
-    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="6.0.0" />
-    <PackageReference Include="Microsoft.Extensions.Options" Version="6.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="7.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Options" Version="7.0.0" />
     <PackageReference Include="Newtonsoft.Json" Version="11.0.2" />
   </ItemGroup>
 

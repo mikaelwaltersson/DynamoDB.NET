@@ -1,8 +1,4 @@
 using Amazon.DynamoDBv2.Model;
-using DynamoDB.Net;
-using DynamoDB.Net.Serialization;
-using Snapshooter.Xunit;
-using Xunit;
 
 namespace DynamoDB.Net.Tests.AcceptanceTests
 {
