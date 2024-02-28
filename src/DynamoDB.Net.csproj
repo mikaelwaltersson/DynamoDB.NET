@@ -6,7 +6,7 @@
     <TargetFramework>netcoreapp7.0</TargetFramework>
     <DebugType>portable</DebugType>
     <AssemblyName>DynamoDB.Net</AssemblyName>
-    <Version>1.0.0-beta-20231018-1</Version>
+    <Version>1.0.0-beta-20240228-1</Version>
     <RepositoryUrl>https://github.com/mikaelwaltersson/dynamodb.net.git</RepositoryUrl> 
     <RepositoryType>git</RepositoryType>
   </PropertyGroup>
@@ -26,7 +26,7 @@
     <PackageReference Include="AWSSDK.DynamoDBv2" Version="3.7.100.22" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="7.0.0" />
     <PackageReference Include="Microsoft.Extensions.Options" Version="7.0.0" />
-    <PackageReference Include="Newtonsoft.Json" Version="11.0.2" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
   </ItemGroup>
 
   <ItemGroup>

@@ -57,7 +57,7 @@ namespace DynamoDB.Net.Serialization
                 new MemoryStreamJsonConverter(),
                 new ByteArrayJsonConverter(),
                 new Iso8601JsonConverter(),
-                new StringEnumConverter(camelCaseText: true),
+                new StringEnumConverter(new CamelCaseNamingStrategy()),
 
                 new DynamoDBSetJsonConverter(typeof(string)),
                 new DynamoDBSetJsonConverter(typeof(char)),
@@ -76,7 +76,7 @@ namespace DynamoDB.Net.Serialization
                 new DynamoDBSetJsonConverter(typeof(float)),
                 new DynamoDBSetJsonConverter(typeof(double)),
                 new DynamoDBSetJsonConverter(typeof(decimal)),
-                new DynamoDBSetJsonConverter(new StringEnumConverter(camelCaseText: true)),
+                new DynamoDBSetJsonConverter(new StringEnumConverter(new CamelCaseNamingStrategy())),
             };
 
 

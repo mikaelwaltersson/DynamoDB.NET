@@ -1,35 +1,38 @@
-namespace DynamoDB.Net.Tests.AcceptanceTests;
-
 using Amazon.DynamoDBv2.Model;
 using DynamoDB.Net.Exceptions;
+
+namespace DynamoDB.Net.Tests.AcceptanceTests;
 
 public partial class DynamoDBClientTests
 {
     [Fact]
     public async Task GetAsyncReturnsObject()
     {
+        // Arrange
         await dynamoDB.PutItemAsync(
             tableName, 
             new Dictionary<string, AttributeValue>
             {
-                ["userId"] = new AttributeValue { S = "00000000-0000-0000-0000-000000000001" },
+                ["userId"] = new AttributeValue { S = "f4ebd04f-0bd7-43b9-90a8-d6de295927f3" },
                 ["timestamp"] = new AttributeValue { S = "2022-10-18T16:42Z" },
                 ["roleIds"] = new AttributeValue 
                 {
-                    SS =
+                    L =
                     {
-                        "00000000-0000-0000-0000-100000000001",
-                        "00000000-0000-0000-0000-100000000002"
+                        new AttributeValue { S = "aa5988f8-4a3f-40ae-987b-22bac870b170" },
+                        new AttributeValue { S = "14598640-6c86-4206-b1a6-753e640b008a" }
                     }
                 }
             });
         
+        // Act
         var item = 
             await dynamoDBClient.GetAsync(
                 new PrimaryKey<TestModels.UserPost>(
-                    new Guid("00000000-0000-0000-0000-000000000001"), 
+                    new Guid("f4ebd04f-0bd7-43b9-90a8-d6de295927f3"), 
                     new DateTime(2022, 10, 18, 16, 42, 0, DateTimeKind.Utc)));
 
+        // Assert
         Assert.NotNull(item);
         Snapshot.Match(item);
     }
@@ -37,10 +40,11 @@ public partial class DynamoDBClientTests
     [Fact]
     public async Task GetAsyncThrowsErrorForNonExistingKey()
     {
+        // Act & Assert
         await Assert.ThrowsAsync<ItemNotFoundException<TestModels.UserPost>>(async () => 
             await dynamoDBClient.GetAsync(
                 new PrimaryKey<TestModels.UserPost>(
-                    new Guid("00000000-0000-0000-0000-000000000001"), 
+                    new Guid("bbb8dfe9-650f-4cd1-abc0-354de2b71a6d"), 
                     new DateTime(2022, 10, 18, 16, 42, 0, DateTimeKind.Utc))));
     }
 }

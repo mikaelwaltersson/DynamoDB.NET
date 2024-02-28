@@ -186,6 +186,9 @@ public class DynamoDBClientExtensionsTests
                             !exclusiveStartKey.Equals(new PrimaryKey<T>(item))).
                         Skip(exclusiveStartKey.Equals(default(PrimaryKey<T>)) ? 0 : 1).
                         Take(Math.Min(limit ?? int.MaxValue, MaxPageSize))));
+
+        public IDynamoDBWriteTransaction BeginWriteTransaction() =>
+            throw new NotImplementedException();
     }
 
     class PartialResult<T> : List<T>, IDynamoDBPartialResult<T> where T : class

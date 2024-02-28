@@ -120,31 +120,23 @@ namespace DynamoDB.Net
             Expression<Func<T, bool>> condition = null,
             CancellationToken cancellationToken = default(CancellationToken)) where T : class
         {
-            if (item == null)
-                throw new ArgumentNullException(nameof(item));
-
-            var expressionTranslationContext = new ExpressionTranslationContext<T>(serializer, Options.JsonWriterFlags);
-            
-            var version = Model.TableDescription.PropertyAccessors<T>.GetVersion?.Invoke(item);
-
-            var serializedItem = itemEvents.OnItemSerialized(Serialize(item), expressionTranslationContext);
-            var translatedItemCondition = itemEvents.OnItemConditionTranslated(condition?.Translate(expressionTranslationContext), version, expressionTranslationContext);
+            var operation = CreatePutOperation(item, condition);
 
             var request =
                 new PutItemRequest
                 {
                     TableName = Model.TableDescription.GetTableName<T>(Options),
-                    Item = serializedItem,
-                    ConditionExpression = translatedItemCondition,
-                    ExpressionAttributeNames = expressionTranslationContext.AttributeNames,
-                    ExpressionAttributeValues = expressionTranslationContext.AttributeValues,
+                    Item = operation.Item,
+                    ConditionExpression = operation.ConditionExpression,
+                    ExpressionAttributeNames = operation.ExpressionAttributeNames,
+                    ExpressionAttributeValues = operation.ExpressionAttributeValues,
                     ReturnConsumedCapacity = LogConsumedCapacity,
                     ReturnValues = ReturnValue.NONE
                 };
 
             await Invoke(client.PutItemAsync, request, cancellationToken);
 
-            return DeserializeItem<T>(serializedItem);
+            return DeserializeItem<T>(request.Item);
         }
 
         public async Task<T> UpdateAsync<T>(
@@ -154,26 +146,17 @@ namespace DynamoDB.Net
             object version = null,
             CancellationToken cancellationToken = default(CancellationToken)) where T : class
         {
-            if (key == null)
-                throw new ArgumentNullException(nameof(key));
-
-            if (update == null)
-                throw new ArgumentNullException(nameof(update));
-
-            var expressionTranslationContext = new ExpressionTranslationContext<T>(serializer, Options.JsonWriterFlags);
-
-            var translatedItemUpdate = itemEvents.OnItemUpdateTranslated(update.Translate(expressionTranslationContext), version, expressionTranslationContext);
-            var translatedItemCondition = itemEvents.OnItemConditionTranslated(condition?.Translate(expressionTranslationContext), version, expressionTranslationContext);
+            var operation = CreateUpdateOperation(key, update, condition, version);
 
             var request =
                 new UpdateItemRequest
                 {                    
                     TableName = Model.TableDescription.GetTableName<T>(Options),
                     Key = Serialize(key),
-                    UpdateExpression = translatedItemUpdate,
-                    ConditionExpression = translatedItemCondition,
-                    ExpressionAttributeNames = expressionTranslationContext.AttributeNames,
-                    ExpressionAttributeValues = expressionTranslationContext.AttributeValues,
+                    UpdateExpression = operation.UpdateExpression,
+                    ConditionExpression = operation.ConditionExpression,
+                    ExpressionAttributeNames = operation.ExpressionAttributeNames,
+                    ExpressionAttributeValues = operation.ExpressionAttributeValues,
                     ReturnConsumedCapacity = LogConsumedCapacity,
                     ReturnValues = ReturnValue.ALL_NEW
                 };
@@ -189,21 +172,16 @@ namespace DynamoDB.Net
             object version = null,
             CancellationToken cancellationToken = default(CancellationToken)) where T : class
         {
-             if (key == null)
-                throw new ArgumentNullException(nameof(key));
-
-            var expressionTranslationContext = new ExpressionTranslationContext<T>(serializer, Options.JsonWriterFlags);
-
-            var translatedItemCondition = itemEvents.OnItemConditionTranslated(condition?.Translate(expressionTranslationContext), version, expressionTranslationContext);
+            var operation = CreateDeleteOperation(key, condition, version);
 
             var request =
                 new DeleteItemRequest
                 {
                     TableName = Model.TableDescription.GetTableName<T>(Options),
                     Key = Serialize(key),
-                    ConditionExpression = translatedItemCondition,
-                    ExpressionAttributeNames = expressionTranslationContext.AttributeNames,
-                    ExpressionAttributeValues = expressionTranslationContext.AttributeValues,
+                    ConditionExpression = operation.ConditionExpression,
+                    ExpressionAttributeNames = operation.ExpressionAttributeNames,
+                    ExpressionAttributeValues = operation.ExpressionAttributeValues,
                     ReturnConsumedCapacity = LogConsumedCapacity,
                     ReturnValues = ReturnValue.NONE
                 };
@@ -290,7 +268,107 @@ namespace DynamoDB.Net
             return new PartialResult<T>(items, lastEvaluatedKey);
         }
 
+        public IDynamoDBWriteTransaction BeginWriteTransaction() => new WriteTransaction(this);
 
+        Put CreatePutOperation<T>(
+            T item,
+            Expression<Func<T, bool>> condition = null) where T : class
+        {
+            if (item == null)
+                throw new ArgumentNullException(nameof(item));
+
+            var expressionTranslationContext = new ExpressionTranslationContext<T>(serializer, Options.JsonWriterFlags);
+            
+            var version = Model.TableDescription.PropertyAccessors<T>.GetVersion?.Invoke(item);
+
+            var serializedItem = itemEvents.OnItemSerialized(Serialize(item), expressionTranslationContext);
+            var translatedItemCondition = itemEvents.OnItemConditionTranslated(condition?.Translate(expressionTranslationContext), version, expressionTranslationContext);
+
+            return
+                new Put
+                {
+                    TableName = Model.TableDescription.GetTableName<T>(Options),
+                    Item = serializedItem,
+                    ConditionExpression = translatedItemCondition,
+                    ExpressionAttributeNames = expressionTranslationContext.AttributeNames,
+                    ExpressionAttributeValues = expressionTranslationContext.AttributeValues,
+                };
+        }
+
+        Update CreateUpdateOperation<T>(
+            PrimaryKey<T> key,
+            Expression<Func<T, DynamoDBExpressions.UpdateAction>> update,
+            Expression<Func<T, bool>> condition = null,
+            object version = null) where T : class
+        {
+            if (key == null)
+                throw new ArgumentNullException(nameof(key));
+
+            if (update == null)
+                throw new ArgumentNullException(nameof(update));
+
+            var expressionTranslationContext = new ExpressionTranslationContext<T>(serializer, Options.JsonWriterFlags);
+
+            var translatedItemUpdate = itemEvents.OnItemUpdateTranslated(update.Translate(expressionTranslationContext), version, expressionTranslationContext);
+            var translatedItemCondition = itemEvents.OnItemConditionTranslated(condition?.Translate(expressionTranslationContext), version, expressionTranslationContext);
+
+            return 
+                new Update
+                {
+                    TableName = Model.TableDescription.GetTableName<T>(Options),
+                    Key = Serialize(key),
+                    UpdateExpression = translatedItemUpdate,
+                    ConditionExpression = translatedItemCondition,
+                    ExpressionAttributeNames = expressionTranslationContext.AttributeNames,
+                    ExpressionAttributeValues = expressionTranslationContext.AttributeValues
+                };
+        }
+
+        Delete CreateDeleteOperation<T>(
+            PrimaryKey<T> key,
+            Expression<Func<T, bool>> condition = null,
+            object version = null) where T : class
+        {
+             if (key == null)
+                throw new ArgumentNullException(nameof(key));
+
+            var expressionTranslationContext = new ExpressionTranslationContext<T>(serializer, Options.JsonWriterFlags);
+
+            var translatedItemCondition = itemEvents.OnItemConditionTranslated(condition?.Translate(expressionTranslationContext), version, expressionTranslationContext);
+
+            return
+                new Delete
+                {
+                    TableName = Model.TableDescription.GetTableName<T>(Options),
+                    Key = Serialize(key),
+                    ConditionExpression = translatedItemCondition,
+                    ExpressionAttributeNames = expressionTranslationContext.AttributeNames,
+                    ExpressionAttributeValues = expressionTranslationContext.AttributeValues
+                };
+        }
+
+        ConditionCheck CreateConditionCheckOperation<T>(
+            PrimaryKey<T> key, 
+            Expression<Func<T, bool>> condition, 
+            object version = null) where T : class
+        {
+             if (key == null)
+                throw new ArgumentNullException(nameof(key));
+
+            var expressionTranslationContext = new ExpressionTranslationContext<T>(serializer, Options.JsonWriterFlags);
+
+            var translatedItemCondition = itemEvents.OnItemConditionTranslated(condition?.Translate(expressionTranslationContext), version, expressionTranslationContext);
+
+            return 
+                new ConditionCheck
+                {
+                    TableName = Model.TableDescription.GetTableName<T>(Options),
+                    Key = Serialize(key),
+                    ConditionExpression = translatedItemCondition,
+                    ExpressionAttributeNames = expressionTranslationContext.AttributeNames,
+                    ExpressionAttributeValues = expressionTranslationContext.AttributeValues
+                };
+        }
 
         Dictionary<string, AttributeValue> Serialize<T>(T itemOrKeys) => 
             serializer.SerializeDynamoDBValue(itemOrKeys, Options.JsonWriterFlags).EnsureIsMSet().M;
@@ -350,6 +428,60 @@ namespace DynamoDB.Net
             public T this[int index] => items[index];
 
             public PrimaryKey<T> LastEvaluatedKey => lastEvaluatedKey;
+        }
+
+        class WriteTransaction : IDynamoDBWriteTransaction
+        {
+            DynamoDBClient dynamoDBClient;
+            List<TransactWriteItem> transactItems;
+            bool isCommitted;
+
+            public WriteTransaction(DynamoDBClient dynamoDBClient)
+            {
+                this.dynamoDBClient = dynamoDBClient;
+                this.transactItems = new List<TransactWriteItem>();
+            }
+
+            public void Put<T>(T item, Expression<Func<T, bool>> condition = null) where T : class =>
+                Add(new TransactWriteItem { Put = this.dynamoDBClient.CreatePutOperation(item, condition) });
+
+            public void Update<T>(PrimaryKey<T> key, Expression<Func<T, DynamoDBExpressions.UpdateAction>> update, Expression<Func<T, bool>> condition = null, object version = null) where T : class =>
+                Add(new TransactWriteItem { Update = this.dynamoDBClient.CreateUpdateOperation(key, update, condition, version) });
+
+            public void Delete<T>(PrimaryKey<T> key, Expression<Func<T, bool>> condition = null, object version = null) where T : class =>
+                Add(new TransactWriteItem { Delete = this.dynamoDBClient.CreateDeleteOperation(key, condition, version) });
+
+            public void ConditionCheck<T>(PrimaryKey<T> key, Expression<Func<T, bool>> condition, object version = null) where T : class =>
+                Add(new TransactWriteItem { ConditionCheck = this.dynamoDBClient.CreateConditionCheckOperation(key, condition, version) });
+
+            public async Task CommitAsync(CancellationToken cancellationToken = default(CancellationToken))
+            {
+                AssertIsNotCommitted();
+
+                this.isCommitted = true;
+
+                var client = this.dynamoDBClient.client;
+                var request = 
+                    new TransactWriteItemsRequest 
+                    { 
+                        TransactItems = this.transactItems
+                    };
+
+                await this.dynamoDBClient.Invoke(client.TransactWriteItemsAsync, request, cancellationToken);
+            }
+
+            void Add(TransactWriteItem item)
+            {
+                AssertIsNotCommitted();
+
+                this.transactItems.Add(item);
+            }
+
+            void AssertIsNotCommitted()
+            {
+                if (this.isCommitted)
+                    throw new InvalidOperationException("Transaction already committed");
+            }
         }
     }
 }

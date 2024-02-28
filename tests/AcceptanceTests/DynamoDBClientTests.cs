@@ -1,10 +1,11 @@
-namespace DynamoDB.Net.Tests.AcceptanceTests;
 
 using Amazon.DynamoDBv2;
 using DynamoDB.Net.Model;
 using DynamoDB.Net.Serialization;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+
+namespace DynamoDB.Net.Tests.AcceptanceTests;
 
 public partial class DynamoDBClientTests : IAsyncLifetime
 {

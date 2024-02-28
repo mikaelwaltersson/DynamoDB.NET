@@ -52,5 +52,7 @@ namespace DynamoDB.Net
             bool? consistentRead = false,
             (string, string) index = default((string, string)),
             CancellationToken cancellationToken = default(CancellationToken)) where T : class;
+
+        IDynamoDBWriteTransaction BeginWriteTransaction();
     }
 }
