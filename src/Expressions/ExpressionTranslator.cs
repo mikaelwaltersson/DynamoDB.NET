@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
@@ -394,8 +395,8 @@ namespace DynamoDB.Net.Expressions
         static IEnumerable<string> TranslateArguments<T>(this IEnumerable<Expression> arguments, ExpressionTranslationContext<T> context) where T : class =>
             arguments.Select(argument => argument.Translate(context));
 
-        static Func<Expression, object> InvokeExpression { get; } = 
-            Enumerable.Empty<object>().AsQueryable().Provider.Execute;
+        static object InvokeExpression(Expression expression) =>
+            ExpressionInvoker.Get(expression.Type).Invoke(expression);
 
         static Expression TryReduceExpression(this Expression expression)
         {
@@ -1144,6 +1145,24 @@ namespace DynamoDB.Net.Expressions
                     "YEAR",
                     "ZONE"
                 };
+        }
+
+        abstract class ExpressionInvoker
+        {
+            static ConcurrentDictionary<Type, ExpressionInvoker> _invokers = new ConcurrentDictionary<Type, ExpressionInvoker>();
+
+            static ExpressionInvoker CreateInstance(Type type) =>
+                 (ExpressionInvoker)System.Activator.CreateInstance(typeof(ExpressionInvoker<>).MakeGenericType(type));
+       
+            public abstract object Invoke(Expression expression);
+
+            public static ExpressionInvoker Get(Type type) => _invokers.GetOrAdd(type, CreateInstance);
+        }
+
+        class ExpressionInvoker<T> : ExpressionInvoker
+        {
+            public override object Invoke(Expression expression) => 
+                Expression.Lambda<Func<T>>(expression).Compile()();
         }
     }
 }
