@@ -149,7 +149,7 @@ namespace DynamoDB.Net
                 await client.TryGetAsync((PrimaryKey<T>)key, consistentRead, cancellationToken);
 
             public async Task<object> PutAsync(IDynamoDBClient client, object item, CancellationToken cancellationToken) =>
-                await client.PutAsync((T)item, null, cancellationToken);
+                await client.PutAsync((T)item, (Expression<Func<T, bool>>)null, cancellationToken);
 
             public async Task<IDynamoDBPartialResult> ScanAsync(IDynamoDBClient client, object exclusiveStartKey, int? limit, bool? consistentRead, CancellationToken cancellationToken) =>
                 new DynamoDBPartialResult(await client.ScanAsync<T>(null, exclusiveStartKey as PrimaryKey<T>? ?? default(PrimaryKey<T>), limit, consistentRead, (null, null), cancellationToken));

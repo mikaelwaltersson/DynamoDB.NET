@@ -6,7 +6,7 @@ namespace DynamoDB.Net.Tests.AcceptanceTests;
 public partial class DynamoDBClientTests
 {
     [Fact]
-    public async Task GetAsyncReturnsObject()
+    public async Task GetAsyncReturnsItem()
     {
         // Arrange
         await dynamoDB.PutItemAsync(

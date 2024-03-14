@@ -6,7 +6,7 @@ using static DynamoDB.Net.DynamoDBExpressions;
 public partial class DynamoDBClientTests
 {
     [Fact]
-    public async Task WriteTransactionsExecutesAllTransactions()
+    public async Task WriteTransactionsExecutesAllOperations()
     {
         // Arrange
         for (var i = 0; i < 3; i++)

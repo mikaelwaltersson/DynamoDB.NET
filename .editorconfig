@@ -1,0 +1,28 @@
+root = true
+
+[*]
+charset = utf-8
+indent_style = space
+indent_size = 4
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+[*.sln]
+indent_style = tab
+
+[*.csproj]
+indent_size = 2
+
+[*.md]
+trim_trailing_whitespace = false
+
+[*.cs]
+
+dotnet_style_qualification_for_field = true:none
+dotnet_style_qualification_for_property = true:none
+dotnet_style_qualification_for_event = true:none
+
+dotnet_style_require_accessibility_modifiers = omit_if_default:warning
+
+dotnet_diagnostic.IDE0003.severity = silent
+

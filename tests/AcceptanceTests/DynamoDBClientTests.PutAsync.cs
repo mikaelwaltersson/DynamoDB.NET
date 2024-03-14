@@ -5,7 +5,7 @@ namespace DynamoDB.Net.Tests.AcceptanceTests;
 public partial class DynamoDBClientTests
 {
     [Fact]
-    public async Task PutAsyncStoresObject()
+    public async Task PutAsyncStoresItem()
     {
         // Act
         await dynamoDBClient.PutAsync(

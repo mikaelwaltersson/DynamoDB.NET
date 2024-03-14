@@ -85,7 +85,7 @@ namespace DynamoDB.Net
         public static IEnumerable<T> ListAppend<T>(IEnumerable<T> operand1, IEnumerable<T> operand2) => DynamoDBMethod<IEnumerable<T>>();
 
 
-        public static object SkipVersionCheckAndUpdate = new object();
+        public static readonly object SkipVersionCheckAndUpdate = new object();
 
 
         public const string String = "S";

@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
-
+using System.Runtime.CompilerServices;
 using DynamoDB.Net.Model;
 using DynamoDB.Net.Serialization;
 using DynamoDB.Net.Serialization.Converters;
@@ -60,6 +60,20 @@ namespace DynamoDB.Net.Expressions
 
         public static string Translate<T>(this Expression<Func<T, DynamoDBExpressions.UpdateAction>> expression, ExpressionTranslationContext<T> context) where T : class => 
             expression.Apply(new HandleEmptyValuesForUpdateVisitor(context.IsSerializedToEmpty)).Body.Translate(context);
+
+        public static Expression<Func<T, TResult>> ReplaceConstantWithParameter<T, TResult>(this Expression<Func<TResult>> expression, T value, [CallerArgumentExpression(nameof(value))] string parameterName = null)
+        {
+            var parameter = Expression.Parameter(typeof(T), parameterName);
+
+            return Expression.Lambda<Func<T, TResult>>(
+                expression.Body.FindReplace(
+                    find: expression => expression.IsReferenceTo(value),
+                    replace: parameter),
+                expression.Parameters.Append(parameter));
+        }
+
+        public static Expression FindReplace(this Expression expression, Func<Expression, bool> find, Expression replace) =>
+            new FindReplaceVisitor(find, replace).Visit(expression);
 
         static string SurroundWithParenthesesIfNeeded(string expression)
         {
@@ -181,8 +195,6 @@ namespace DynamoDB.Net.Expressions
 
             return Unsupported(expression);
         }
-
-
 
         static string TranslateCall<T>(this MethodCallExpression expression, ExpressionTranslationContext<T> context) where T : class
         {
@@ -376,6 +388,9 @@ namespace DynamoDB.Net.Expressions
             }
         }
         
+        static bool IsReferenceTo(this Expression expression, object value) =>
+            expression.TryResolveConstantValue(out var constantValue) && ReferenceEquals(value, constantValue);
+
         static IEnumerable<string> TranslateArguments<T>(this IEnumerable<Expression> arguments, ExpressionTranslationContext<T> context) where T : class =>
             arguments.Select(argument => argument.Translate(context));
 
@@ -404,6 +419,28 @@ namespace DynamoDB.Net.Expressions
 
             return expression;
         }
+
+        static bool TryResolveConstantValue(this Expression expression, out object constantValue)
+        {
+            if (expression.CanResolveConstantValue())
+            {
+                constantValue = InvokeExpression(expression);
+                return true;
+            }
+            else
+            {
+                constantValue = null;
+                return false;
+            }
+        }
+
+        static bool CanResolveConstantValue(this Expression expression) =>
+            expression is ConstantExpression constantExpression ||
+            (expression is MemberExpression memberExpression && 
+                memberExpression.Expression.CanResolveConstantValue()) ||
+            (expression is IndexExpression indexExpression && 
+                indexExpression.Object.CanResolveConstantValue() &&
+                indexExpression.Arguments.All(argument => argument.CanResolveConstantValue()));
 
         static T Apply<T>(this T expression, ExpressionVisitor expressionVisitor) where T : LambdaExpression =>
             (T)Expression.Lambda(expressionVisitor.Visit(expression.Body), expression.Parameters);
@@ -503,6 +540,21 @@ namespace DynamoDB.Net.Expressions
 
                 return node;
             }           
+        }
+
+        class FindReplaceVisitor : ExpressionVisitor
+        {
+            Func<Expression, bool> find;
+            Expression replace;
+
+            public FindReplaceVisitor(Func<Expression, bool> find, Expression replace)
+            {
+                this.find = find;
+                this.replace = replace;
+            }
+
+            public override Expression Visit(Expression node) =>
+                find(node) ? replace : base.Visit(node);
         }
 
         static class Identifier

@@ -5,7 +5,7 @@ namespace DynamoDB.Net.Tests.AcceptanceTests;
 public partial class DynamoDBClientTests
 {
     [Fact]
-    public async Task QueryAsyncReturnsObjects()
+    public async Task QueryAsyncReturnsItems()
     {
         // Arrange
         for (var i = 0; i < 4; i++)
