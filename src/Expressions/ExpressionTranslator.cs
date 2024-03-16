@@ -8,9 +8,6 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using DynamoDB.Net.Model;
 using DynamoDB.Net.Serialization;
-using DynamoDB.Net.Serialization.Converters;
-
-using Newtonsoft.Json.Serialization;
 
 namespace DynamoDB.Net.Expressions
 {
@@ -244,16 +241,14 @@ namespace DynamoDB.Net.Expressions
                 return raw.expression;
             }
 
-            if (value is Array && !(value is byte[]))
+            if (value is Array && value is not byte[])
             {
                 var elementType = value.GetType().GetElementType();
-                var setType = typeof(ISet<>).MakeGenericType(elementType);
-                var converter = context.Serializer.ContractResolver.ResolveContract(setType).Converter;
-                if (converter is DynamoDBSetJsonConverter)
-                    value = ((DynamoDBSetJsonConverter)converter).CreateSet(elementType, (IEnumerable)value);
+                if (context.Serializer.TryCreateDynamoDBSet(elementType, (IEnumerable)value, out var dynamoDBSet))
+                    value = dynamoDBSet;
             }
 
-            var serializedValue = context.Serializer.SerializeDynamoDBValue(value, expression.Type, context.JsonWriterFlags | DynamoDBJsonWriterFlags.PersistAll);
+            var serializedValue = context.Serializer.SerializeDynamoDBValue(value, expression.Type, context.SerializeFlags | SerializeDynamoDBValueFlags.PersistAll);
 
             return context.GetOrAddAttributeValue(serializedValue);
         }
@@ -261,35 +256,12 @@ namespace DynamoDB.Net.Expressions
         static string TranslateMember<T>(this MemberExpression expression, ExpressionTranslationContext<T> context) where T : class
         {
             var member = expression.Member;
-            var memberContract = context.Serializer.ContractResolver.ResolveContract(member.DeclaringType) as JsonObjectContract;
-            var memberProperty = 
-                GetPrimaryKeyProperty(member, context.Serializer.GetTableDescription) ??
-                memberContract?.Properties?.SingleOrDefault(property => property.UnderlyingName == member.Name);
+            var memberPropertyName = context.Serializer.GetSerializedPropertyName(member);
 
-            if (memberProperty == null)
+            if (memberPropertyName == null)
                 throw new InvalidOperationException($"No property name defined for member {member.Name} of type {member.DeclaringType.FullName}");
 
-            return expression.Expression.TranslateMember(memberProperty.PropertyName, context);
-        }
-
-        static JsonProperty GetPrimaryKeyProperty(MemberInfo member, Func<Type, TableDescription> getTableDescription)
-        {
-            var primaryKeyUnderlyingType = PrimaryKey.GetUnderlyingType(member.DeclaringType);
-            
-            if (primaryKeyUnderlyingType != null)
-            {
-                var tableDescription = getTableDescription(primaryKeyUnderlyingType);
-                switch (member.Name)
-                {
-                    case nameof(PrimaryKey<object>.PartitionKey):
-                        return tableDescription.PartitionKeyProperty;
-
-                    case nameof(PrimaryKey<object>.SortKey):
-                        return tableDescription.SortKeyProperty;
-                }
-            }
-
-            return null;
+            return expression.Expression.TranslateMember(memberPropertyName, context);
         }
 
         static string TranslateMember<T>(this Expression expression, string memberName, ExpressionTranslationContext<T> context) where T : class
@@ -313,7 +285,7 @@ namespace DynamoDB.Net.Expressions
                 var indexValue = (arguments[0].TryReduceExpression() as ConstantExpression)?.Value;
                 if (indexValue != null)
                 {
-                    var serializedIndexValue = context.Serializer.SerializeDynamoDBValue(indexValue, indexValue.GetType(), context.JsonWriterFlags | DynamoDBJsonWriterFlags.PersistAll);
+                    var serializedIndexValue = context.Serializer.SerializeDynamoDBValue(indexValue, indexValue.GetType(), context.SerializeFlags | SerializeDynamoDBValueFlags.PersistAll);
 
                     if (!string.IsNullOrEmpty(serializedIndexValue.S))
                         return expression.TranslateMember(serializedIndexValue.S, context);

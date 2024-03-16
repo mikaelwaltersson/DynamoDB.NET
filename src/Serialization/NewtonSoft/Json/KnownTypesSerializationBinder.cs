@@ -4,7 +4,7 @@ using System.Linq;
 using System.Reflection;
 using Newtonsoft.Json.Serialization;
 
-namespace DynamoDB.Net.Serialization
+namespace DynamoDB.Net.Serialization.Newtonsoft.Json
 {
     public class KnownTypesSerializationBinder : ISerializationBinder
     {

@@ -1,6 +1,6 @@
 using System;
 
-namespace DynamoDB.Net.Model
+namespace DynamoDB.Net.Serialization.Newtonsoft.Json.Model
 {
     [Flags]
     public enum SerializationTarget

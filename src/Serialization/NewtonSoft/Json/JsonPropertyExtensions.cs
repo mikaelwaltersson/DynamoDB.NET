@@ -7,7 +7,7 @@ using System.Reflection;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Serialization;
 
-namespace DynamoDB.Net.Serialization
+namespace DynamoDB.Net.Serialization.Newtonsoft.Json
 {
     static class JsonPropertyExtensions
     {
@@ -84,14 +84,6 @@ namespace DynamoDB.Net.Serialization
             }
 
             serializer.Serialize(writer, value);
-        }
-
-        public static Func<T, object> CompileGetter<T>(this JsonProperty property)
-        {
-            var parameter = Expression.Parameter(typeof(T), "item");
-            var body =  Expression.Convert(Expression.PropertyOrField(parameter, property.UnderlyingName), typeof(object));
-
-            return Expression.Lambda<Func<T, object>>(body, parameter).Compile();
         }
 
         public static JsonProperty Clone(this JsonProperty property, Required? required)

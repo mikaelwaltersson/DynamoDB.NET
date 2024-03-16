@@ -7,7 +7,7 @@ using Amazon.DynamoDBv2.Model;
 
 using Newtonsoft.Json;
 
-namespace DynamoDB.Net.Serialization
+namespace DynamoDB.Net.Serialization.Newtonsoft.Json
 {    
     public class DynamoDBJsonReader : JsonReader
     {

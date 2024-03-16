@@ -1,6 +1,6 @@
 using Newtonsoft.Json.Serialization;
 
-namespace DynamoDB.Net.Serialization
+namespace DynamoDB.Net.Serialization.Newtonsoft.Json
 {
     public interface IPropertyDecorator
     {

@@ -4,23 +4,13 @@ using System.Text;
 using DynamoDB.Net.Model;
 using DynamoDB.Net.Serialization;
 
-using Newtonsoft.Json;
-
 using AttributeValue = Amazon.DynamoDBv2.Model.AttributeValue;
 
 namespace DynamoDB.Net
 {
     public static class PrimaryKey
     {
-        internal static readonly JsonSerializer DefaultSerializer;
-        
-        static PrimaryKey()
-        {
-            var serializerSettings = new JsonSerializerSettings();
-
-            DynamoDBClientOptions.DefaultConfigureSerializer(serializerSettings, JsonContractResolver.DefaultDynamoDB);
-            DefaultSerializer = JsonSerializer.Create(serializerSettings);
-        }
+        public static IDynamoDBSerializer DefaultSerializer { get; set; }
 
         public static Type GetUnderlyingType(Type type)
         {
@@ -104,12 +94,14 @@ namespace DynamoDB.Net
 
         public override string ToString() => this.ToString(null);
 
-        public string ToString(JsonSerializer keyValueSerializer = null, char keyValueSeparator = ',')
+        public string ToString(IDynamoDBSerializer keyValueSerializer = null, char keyValueSeparator = ',')
         {
             var s = new StringBuilder();
 
             if (keyValueSerializer == null)
                 keyValueSerializer = PrimaryKey.DefaultSerializer;
+
+            ArgumentNullException.ThrowIfNull(nameof(keyValueSerializer));
 
             s.Append(
                 EscapeKeyValue(
@@ -128,7 +120,7 @@ namespace DynamoDB.Net
             return s.ToString();
         }
 
-        public static PrimaryKey<T> Parse(string s, JsonSerializer keyValueSerializer = null, char keyValueSeparator = ',')
+        public static PrimaryKey<T> Parse(string s, IDynamoDBSerializer keyValueSerializer = null, char keyValueSeparator = ',')
         {
             var key = s.Split(keyValueSeparator);
             if (key.Length != (HasSortKey ? 2 : 1))
@@ -136,6 +128,8 @@ namespace DynamoDB.Net
 
             if (keyValueSerializer == null)
                 keyValueSerializer = PrimaryKey.DefaultSerializer;
+
+            ArgumentNullException.ThrowIfNull(nameof(keyValueSerializer));
 
             return
                 new PrimaryKey<T>(

@@ -3,7 +3,7 @@ using System.IO;
 
 using Newtonsoft.Json;
 
-namespace DynamoDB.Net.Serialization.Converters
+namespace DynamoDB.Net.Serialization.Newtonsoft.Json.Converters
 {
     public class MemoryStreamJsonConverter : JsonConverter
     {

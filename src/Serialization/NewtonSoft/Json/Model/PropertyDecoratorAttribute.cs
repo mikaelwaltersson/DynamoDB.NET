@@ -1,10 +1,8 @@
 using System;
 
-using DynamoDB.Net.Serialization;
-
 using Newtonsoft.Json.Serialization;
 
-namespace DynamoDB.Net.Model
+namespace DynamoDB.Net.Serialization.Newtonsoft.Json.Model
 {
     [AttributeUsage(AttributeTargets.Property)]
     public abstract class PropertyDecoratorAttribute : Attribute, IPropertyDecorator

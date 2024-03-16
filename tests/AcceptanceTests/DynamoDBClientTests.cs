@@ -3,6 +3,7 @@ using Amazon.DynamoDBv2;
 using DynamoDB.Net.Model;
 using DynamoDB.Net.Serialization;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace DynamoDB.Net.Tests.AcceptanceTests;
@@ -30,6 +31,7 @@ public partial class DynamoDBClientTests : IAsyncLifetime
                         ServiceURL = "http://localhost:8000"
                     }));
 
+        services.AddSingleton<IDynamoDBSerializer, Serialization.Newtonsoft.Json.JsonDynamoDbSerializer>();
         services.AddSingleton<IDynamoDBClient, DynamoDBClient>();
         services.Configure<DynamoDBClientOptions>(
             options => 
@@ -42,12 +44,10 @@ public partial class DynamoDBClientTests : IAsyncLifetime
 
         dynamoDB = serviceProvider.GetRequiredService<IAmazonDynamoDB>();
         
-        var createTableRequest = 
-            TableDescription.Get(
-                typeof(TestModels.UserPost), 
-                JsonContractResolver.DefaultDynamoDB).
-                    GetCreateTableRequest(
-                        serviceProvider.GetRequiredService<IOptions<DynamoDBClientOptions>>().Value);
+        var createTableRequest = serviceProvider
+            .GetRequiredService<IDynamoDBSerializer>()
+            .GetTableDescription(typeof(TestModels.UserPost))
+            .GetCreateTableRequest(serviceProvider.GetRequiredService<IOptions<DynamoDBClientOptions>>().Value);
 
         await dynamoDB.CreateTableAsync(createTableRequest);
 

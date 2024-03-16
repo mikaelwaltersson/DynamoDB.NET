@@ -1,15 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
-
 using Amazon.DynamoDBv2.Model;
-
 using DynamoDB.Net.Expressions;
-using DynamoDB.Net.Model;
 using DynamoDB.Net.Serialization;
-
-using Newtonsoft.Json;
-using Newtonsoft.Json.Serialization;
 
 namespace DynamoDB.Net
 {
@@ -44,7 +38,7 @@ namespace DynamoDB.Net
                 throw new ArgumentNullException(nameof(translationContext));
 
             var versionProperty = translationContext.TableDescription.VersionProperty;
-            if (versionProperty != null && !Object.ReferenceEquals(version, DynamoDBExpressions.SkipVersionCheckAndUpdate))
+            if (versionProperty != null && !ReferenceEquals(version, DynamoDBExpressions.SkipVersionCheckAndUpdate))
             {
                 var serializedVersion = translationContext.Serializer.SerializeDynamoDBValue(version);
                 var isIncrementableVersion = GetDefaultSerializedVersionValue(versionProperty, translationContext.Serializer).N != null;
@@ -95,7 +89,7 @@ namespace DynamoDB.Net
             return expression;
         }
 
-        static AttributeValue GetNextVersion(AttributeValue serializedVersion, JsonProperty versionProperty, JsonSerializer serializer) 
+        static AttributeValue GetNextVersion(AttributeValue serializedVersion, ITypeContractProperty versionProperty, IDynamoDBSerializer serializer) 
         {
             var number = serializedVersion.N;
             if (number != null)
@@ -129,10 +123,10 @@ namespace DynamoDB.Net
         static Type GetUnderlyingVersionType(Type type) =>
             Nullable.GetUnderlyingType(type) ?? type;
         
-        static AttributeValue GetDefaultSerializedVersionValue(JsonProperty versionProperty, JsonSerializer serializer) => 
+        static AttributeValue GetDefaultSerializedVersionValue(ITypeContractProperty versionProperty, IDynamoDBSerializer serializer) => 
             serializer.SerializeDynamoDBValue(GetUnderlyingVersionType(versionProperty.PropertyType).CreateInstance());
 
-        static bool IsEmptyVersionValue(object version, JsonProperty versionProperty) =>
+        static bool IsEmptyVersionValue(object version, ITypeContractProperty versionProperty) =>
             Equals(version, GetUnderlyingVersionType(versionProperty.PropertyType).CreateInstance());
 
     }

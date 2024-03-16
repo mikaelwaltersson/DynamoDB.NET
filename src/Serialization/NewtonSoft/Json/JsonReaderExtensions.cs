@@ -3,7 +3,7 @@
 using Newtonsoft.Json;
 using Newtonsoft.Json.Serialization;
 
-namespace DynamoDB.Net.Serialization
+namespace DynamoDB.Net.Serialization.Newtonsoft.Json
 {
     public static class JsonReaderExtensions
     {

@@ -2,7 +2,7 @@ using System;
 
 using Newtonsoft.Json;
 
-namespace DynamoDB.Net.Serialization.Converters
+namespace DynamoDB.Net.Serialization.Newtonsoft.Json.Converters
 {
     public class Iso8601JsonConverter : JsonConverter
     {

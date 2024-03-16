@@ -5,10 +5,7 @@ using System.Reflection;
 
 using Amazon.DynamoDBv2;
 using Amazon.DynamoDBv2.Model;
-
 using DynamoDB.Net.Serialization;
-
-using Newtonsoft.Json.Serialization;
 
 namespace DynamoDB.Net.Model
 {
@@ -17,7 +14,7 @@ namespace DynamoDB.Net.Model
         const int DefaultReadCapacityUnits = 5;
         const int DefaultWriteCapacityUnits = 2;
 
-        TableDescription(string tableName, JsonObjectContract contract)
+        TableDescription(string tableName, ITypeContract contract)
         {
             TableName = tableName;
             PartitionKeyProperty = ResolveIndexKeyProperty<PartitionKeyAttribute>(contract, required: true);
@@ -34,15 +31,15 @@ namespace DynamoDB.Net.Model
         }
 
         public string TableName { get; }
-        public JsonProperty PartitionKeyProperty { get; }
-        public JsonProperty SortKeyProperty { get; }
-        public JsonProperty VersionProperty { get; }
-        public JsonProperty[] LocalSecondaryIndexSortKeyProperties { get; }
-        public JsonProperty[] GlobalSecondaryIndexPartitionKeyProperties { get; }
-        public JsonProperty[] GlobalSecondaryIndexSortKeyProperties { get; }
+        public ITypeContractProperty PartitionKeyProperty { get; }
+        public ITypeContractProperty SortKeyProperty { get; }
+        public ITypeContractProperty VersionProperty { get; }
+        public ITypeContractProperty[] LocalSecondaryIndexSortKeyProperties { get; }
+        public ITypeContractProperty[] GlobalSecondaryIndexPartitionKeyProperties { get; }
+        public ITypeContractProperty[] GlobalSecondaryIndexSortKeyProperties { get; }
 
 
-        public static TableDescription Get(Type type, JsonContractResolver contractResolver)
+        public static TableDescription Get(Type type, ITypeContractResolver contractResolver)
         {
             if (type == null)
                 throw new ArgumentNullException(nameof(contractResolver));
@@ -53,10 +50,7 @@ namespace DynamoDB.Net.Model
             var tableName = GetTableName(type);
             var contract = contractResolver.ResolveContract(type);
 
-            if (!(contract is JsonObjectContract))
-                throw new InvalidOperationException($"Expected JsonObjectContract for {type.FullName}, got: {contract.GetType()?.Name}");
-
-            return new TableDescription(tableName, (JsonObjectContract)contract);
+            return new TableDescription(tableName, contract);
         }
 
         public static string GetTableName<T>(DynamoDBClientOptions options = null) => GetTableName(typeof(T), options);
@@ -162,7 +156,7 @@ namespace DynamoDB.Net.Model
         {
             static KeyTypes()
             {
-                var tableDescription = Get(typeof(T), JsonContractResolver.Default);
+                var tableDescription = Get(typeof(T), TypeContractResolver.Default);
 
                 PartitionKey = tableDescription.PartitionKeyProperty.PropertyType;
                 SortKey = tableDescription.SortKeyProperty?.PropertyType;
@@ -176,7 +170,7 @@ namespace DynamoDB.Net.Model
         {
             static PropertyNames()
             {
-                var tableDescription = Get(typeof(T), JsonContractResolver.Default);
+                var tableDescription = Get(typeof(T), TypeContractResolver.Default);
 
                 PartitionKey = tableDescription.PartitionKeyProperty.PropertyName;
                 SortKey = tableDescription.SortKeyProperty?.PropertyName;
@@ -192,7 +186,7 @@ namespace DynamoDB.Net.Model
         {
             static PropertyAccessors()
             {
-                var tableDescription = Get(typeof(T), JsonContractResolver.Default);
+                var tableDescription = Get(typeof(T), TypeContractResolver.Default);
 
                 GetPartitionKey = tableDescription.PartitionKeyProperty.CompileGetter<T>();
                 GetSortKey = tableDescription.SortKeyProperty?.CompileGetter<T>();
@@ -238,10 +232,10 @@ namespace DynamoDB.Net.Model
             }
         }
 
-        static string GetPropertyIndexAttributeName<TAttribute>(JsonProperty property, IndexType type, int ordinal) where TAttribute : Base.IndexKeyAttributeBase =>
+        static string GetPropertyIndexAttributeName<TAttribute>(ITypeContractProperty property, IndexType type, int ordinal) where TAttribute : Base.IndexKeyAttributeBase =>
             property.GetAttributes<TAttribute>().FirstOrDefault(a => a.Type == type && a.Ordinal == ordinal)?.Name;
    
-        static JsonProperty ResolveIndexKeyProperty<TAttribute>(JsonObjectContract contract, IndexType type = IndexType.PrimaryKey, int ordinal = 0, bool required = false) where TAttribute : Base.IndexKeyAttributeBase
+        static ITypeContractProperty ResolveIndexKeyProperty<TAttribute>(ITypeContract contract, IndexType type = IndexType.PrimaryKey, int ordinal = 0, bool required = false) where TAttribute : Base.IndexKeyAttributeBase
         {
             var properties =
                 contract.Properties.
@@ -255,16 +249,16 @@ namespace DynamoDB.Net.Model
             return ValidSingleResolvedPropertyResult(contract, properties, attributeDescription, required);
         }
 
-        static JsonProperty ResolveVersionProperty(JsonObjectContract contract) =>
+        static ITypeContractProperty ResolveVersionProperty(ITypeContract contract) =>
             ValidSingleResolvedPropertyResult(
                 contract, 
                 contract.Properties.Where(p => p.HasAttribute<VersionAttribute>()).ToArray(), 
                 typeof(Version).Name);
     
-        static JsonProperty[] ResolveSecondaryIndexKeyProperties<TAttribute>(JsonObjectContract contract, IndexType type) where TAttribute : Base.IndexKeyAttributeBase =>
+        static ITypeContractProperty[] ResolveSecondaryIndexKeyProperties<TAttribute>(ITypeContract contract, IndexType type) where TAttribute : Base.IndexKeyAttributeBase =>
             GetIndexOrdinals(type).Select(ordinal => ResolveIndexKeyProperty<TAttribute>(contract, type, ordinal)).ToArray();
 
-        static JsonProperty ValidSingleResolvedPropertyResult(JsonObjectContract contract, JsonProperty[] properties, string attributeDescription, bool required = false)
+        static ITypeContractProperty ValidSingleResolvedPropertyResult(ITypeContract contract, ITypeContractProperty[] properties, string attributeDescription, bool required = false)
         {
             if (properties.Length > 1)
                 throw new InvalidOperationException($"Expected at most one property with a {attributeDescription} attribute for {contract.UnderlyingType.FullName}, got {properties.Length}");
@@ -280,7 +274,7 @@ namespace DynamoDB.Net.Model
             return properties[0];
         }
 
-        static void FallBackToPrimaryPartitionKey(JsonProperty[] indexPartitionKeyProperties, JsonProperty[] indexSortKeyProperties, JsonProperty primaryPartitionKey)
+        static void FallBackToPrimaryPartitionKey(ITypeContractProperty[] indexPartitionKeyProperties, ITypeContractProperty[] indexSortKeyProperties, ITypeContractProperty primaryPartitionKey)
         {
             for (var i = 0; i < indexPartitionKeyProperties.Length; i++)
             {
@@ -299,7 +293,7 @@ namespace DynamoDB.Net.Model
                     ? mappedName
                     : options.TableNamePrefix + name;
         }
-        
+
         static class TableRequests
         {
             public static CreateTableRequest CreateTable(
@@ -395,7 +389,7 @@ namespace DynamoDB.Net.Model
                 };
 
 
-            static List<KeySchemaElement> GetKeySchema(JsonProperty partitionKeyProperty, JsonProperty sortKeyProperty)
+            static List<KeySchemaElement> GetKeySchema(ITypeContractProperty partitionKeyProperty, ITypeContractProperty sortKeyProperty)
             {
                 var elements =
                     new List<KeySchemaElement>
@@ -467,7 +461,6 @@ namespace DynamoDB.Net.Model
                 }
             }
         }
-
     }
 
 }

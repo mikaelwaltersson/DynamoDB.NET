@@ -5,8 +5,6 @@ using Amazon.DynamoDBv2.Model;
 
 using DynamoDB.Net.Serialization;
 
-using Newtonsoft.Json;
-
 namespace DynamoDB.Net.Expressions
 {
     public class ExpressionTranslationContext<T> where T : class
@@ -16,19 +14,19 @@ namespace DynamoDB.Net.Expressions
         Dictionary<string, AttributeValue> attributeValues;
         Dictionary<AttributeValue, string> attributeValueAliases;
 
-        public ExpressionTranslationContext(JsonSerializer serializer, DynamoDBJsonWriterFlags jsonWriterFlags)
+        public ExpressionTranslationContext(IDynamoDBSerializer serializer, SerializeDynamoDBValueFlags serializeFlags)
         {
             if (serializer == null)
                 throw new ArgumentNullException(nameof(serializer));
 
             Serializer = serializer;
-            JsonWriterFlags = jsonWriterFlags;
+            SerializeFlags = serializeFlags;
             TableDescription = serializer.GetTableDescription(typeof(T));
         }
 
 
-        public JsonSerializer Serializer { get; }
-        public DynamoDBJsonWriterFlags JsonWriterFlags { get; }
+        public IDynamoDBSerializer Serializer { get; }
+        public SerializeDynamoDBValueFlags SerializeFlags { get; }
         public Model.TableDescription TableDescription { get; }
 
         public Dictionary<string, string> AttributeNames => attributeNames;
@@ -43,8 +41,8 @@ namespace DynamoDB.Net.Expressions
 
         public bool IsSerializedToEmpty(object value) =>
             value == null
-            ? !JsonWriterFlags.HasFlag(DynamoDBJsonWriterFlags.PersistNullValues)
-            : Serializer.SerializeDynamoDBValue(value, value?.GetType(), JsonWriterFlags).IsEmpty();     
+            ? !SerializeFlags.HasFlag(SerializeDynamoDBValueFlags.PersistNullValues)
+            : Serializer.SerializeDynamoDBValue(value, value?.GetType(), SerializeFlags).IsEmpty();     
 
 
         static string GetOrAddWithAlias<TValue>(
@@ -108,7 +106,7 @@ namespace DynamoDB.Net.Expressions
                     this.attributeValues.Add(
                         entry.Key,
                         entry.Value as AttributeValue ??
-                        Serializer.SerializeDynamoDBValue(entry.Value, JsonWriterFlags).EmptyAsNull());
+                        Serializer.SerializeDynamoDBValue(entry.Value, SerializeFlags).EmptyAsNull());
                 }
             }
         }

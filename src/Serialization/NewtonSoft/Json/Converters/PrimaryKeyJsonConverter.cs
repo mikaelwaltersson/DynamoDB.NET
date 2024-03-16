@@ -3,7 +3,7 @@ using System;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Serialization;
 
-namespace DynamoDB.Net.Serialization.Converters
+namespace DynamoDB.Net.Serialization.Newtonsoft.Json.Converters
 {
     public class PrimaryKeyJsonConverter<T> : JsonConverter where T : class
     {
@@ -19,8 +19,8 @@ namespace DynamoDB.Net.Serialization.Converters
             this.properties =
                 new[]
                 {
-                    tableDescription.PartitionKeyProperty.Clone(required: Required.Always),
-                    tableDescription.SortKeyProperty?.Clone(required: Required.Always)
+                    JsonContractResolver.UnwrapJsonProperty(tableDescription.PartitionKeyProperty).Clone(required: Required.Always),
+                    JsonContractResolver.UnwrapJsonProperty(tableDescription.SortKeyProperty)?.Clone(required: Required.Always)
                 };
         }
 

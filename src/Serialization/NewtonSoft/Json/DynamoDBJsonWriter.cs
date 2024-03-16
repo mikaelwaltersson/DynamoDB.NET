@@ -8,14 +8,14 @@ using Amazon.DynamoDBv2.Model;
 
 using Newtonsoft.Json;
 
-namespace DynamoDB.Net.Serialization
+namespace DynamoDB.Net.Serialization.Newtonsoft.Json
 {    
     public class DynamoDBJsonWriter : JsonWriter
     {
         Stack<StackEntry> stack = new Stack<StackEntry>();
-        DynamoDBJsonWriterFlags flags;
+        SerializeDynamoDBValueFlags flags;
 
-        public DynamoDBJsonWriter(AttributeValue target, DynamoDBJsonWriterFlags flags)
+        public DynamoDBJsonWriter(AttributeValue target, SerializeDynamoDBValueFlags flags)
         {
             if (target == null)
                 throw new ArgumentNullException(nameof(target));
@@ -107,7 +107,7 @@ namespace DynamoDB.Net.Serialization
 
             var nextValue = NextValue();
 
-            if (currentObject.Count == 0 && !flags.HasFlag(DynamoDBJsonWriterFlags.PersistEmptyObjects))
+            if (currentObject.Count == 0 && !flags.HasFlag(SerializeDynamoDBValueFlags.PersistEmptyObjects))
                 return;
             
             nextValue.M = currentObject.ToDictionary(entry => entry.Key, entry => entry.Value);
@@ -137,7 +137,7 @@ namespace DynamoDB.Net.Serialization
 
             var nextValue = NextValue();
             
-            if (currentArray.Count == 0 && !flags.HasFlag(DynamoDBJsonWriterFlags.PersistEmptyArrays))
+            if (currentArray.Count == 0 && !flags.HasFlag(SerializeDynamoDBValueFlags.PersistEmptyArrays))
                 return;
 
             if (isSet && !CurrentIsArray)
@@ -272,7 +272,7 @@ namespace DynamoDB.Net.Serialization
 
         void WriteNull(AttributeValue nextValue)
         {
-            if (flags.HasFlag(DynamoDBJsonWriterFlags.PersistNullValues))
+            if (flags.HasFlag(SerializeDynamoDBValueFlags.PersistNullValues))
                 nextValue.NULL = true;
         }
 

@@ -1,12 +1,7 @@
-using System;
-using System.Collections;
-
 using Newtonsoft.Json;
 using Newtonsoft.Json.Serialization;
 
-using DynamoDB.Net.Serialization;
-
-namespace DynamoDB.Net.Model
+namespace DynamoDB.Net.Serialization.Newtonsoft.Json.Model
 {
     public abstract class ValidationAttribute : PropertyDecoratorAttribute
     {
