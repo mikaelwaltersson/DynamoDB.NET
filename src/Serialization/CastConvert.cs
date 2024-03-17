@@ -3,47 +3,41 @@ using System.Collections.Concurrent;
 using System.Linq;
 using System.Linq.Expressions;
 
-namespace DynamoDB.Net.Serialization
+namespace DynamoDB.Net.Serialization;
+
+public static class CastConvert
 {
-    public static class CastConvert
+    static readonly ConcurrentDictionary<Tuple<Type, Type>, Func<object, object>> compiledCastTo = new();
+
+    static Func<object, object> CompileCastTo(Tuple<Type, Type> args)
     {
-        static ConcurrentDictionary<Tuple<Type, Type>, Func<object, object>> compiledCastTo = 
-            new ConcurrentDictionary<Tuple<Type, Type>, Func<object, object>>();
+        var fromType = args.Item1;
+        var toType = args.Item2;
 
-        static Func<object, object> CompileCastTo(Tuple<Type, Type> args)
+        if (fromType == toType)
+            return value => value;
+
+        var parameter = Expression.Parameter(typeof(object), "value");
+        try
         {
-            var fromType = args.Item1;
-            var toType = args.Item2;
+            var casts = new[] { fromType, toType, typeof(object) };
+            var compiledCast = 
+                Expression.
+                    Lambda<Func<object, object>>(casts.Aggregate((Expression)parameter, Expression.Convert), parameter).
+                    Compile();
 
-            if (fromType == toType)
-                return value => value;
-
-            var parameter = Expression.Parameter(typeof(object), "value");
-            try
-            {
-                var casts = new[] { fromType, toType, typeof(object) };
-                var compiledCast = 
-                    Expression.
-                        Lambda<Func<object, object>>(casts.Aggregate((Expression)parameter, Expression.Convert), parameter).
-                        Compile();
-
-                return compiledCast;
-            }
-            catch (InvalidOperationException ex)
-            {
-                return value => NoCoercionOperatorIsDefined(ex);
-            }
+            return compiledCast;
         }
-
-
-
-        static object NoCoercionOperatorIsDefined(InvalidOperationException ex) =>
-            throw ex;
-
-        public static object CastTo<T>(this T value, Type objectType) => 
-            compiledCastTo.GetOrAdd(Tuple.Create(typeof(T), objectType), CompileCastTo)(value);
-
-        public static object CastTo(this object value, Type objectType) => 
-            compiledCastTo.GetOrAdd(Tuple.Create(value?.GetType() ?? typeof(object), objectType), CompileCastTo)(value);
+        catch (InvalidOperationException ex)
+        {
+            return value => throw ex;
+        }
     }
+
+
+    public static object CastTo<T>(this T value, Type objectType) => 
+        compiledCastTo.GetOrAdd(Tuple.Create(typeof(T), objectType), CompileCastTo)(value);
+
+    public static object CastTo(this object value, Type objectType) => 
+        compiledCastTo.GetOrAdd(Tuple.Create(value?.GetType() ?? typeof(object), objectType), CompileCastTo)(value);
 }

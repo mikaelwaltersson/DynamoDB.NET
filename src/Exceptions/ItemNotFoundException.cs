@@ -1,20 +1,12 @@
 ﻿using System;
 
-namespace DynamoDB.Net.Exceptions
-{
-    public class ItemNotFoundException : Exception
-    {
-        public ItemNotFoundException(string message)
-            : base(message)
-        {
-        }
-    }
+namespace DynamoDB.Net.Exceptions;
 
-    public class ItemNotFoundException<T> : Exception where T : class
-    {
-        public ItemNotFoundException(PrimaryKey<T> key, string tableName)
-            : base($"Item with key {key} not found in table {tableName}")
-        {
-        }
-    }
+public class ItemNotFoundException(string message) : Exception(message)
+{
+}
+
+public class ItemNotFoundException<T>(PrimaryKey<T> key, string tableName) 
+    : Exception($"Item with key {key} not found in table {tableName}") where T : class
+{
 }

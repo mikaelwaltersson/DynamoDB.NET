@@ -3,14 +3,13 @@ using System.Linq;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Serialization;
 
-namespace DynamoDB.Net.Serialization.Newtonsoft.Json
+namespace DynamoDB.Net.Serialization.Newtonsoft.Json;
+
+public class SerializeDefaultValueForNonFlagsEnumsPropertyDecorator : IPropertyDecorator
 {
-    public class SerializeDefaultValueForNonFlagsEnumsPropertyDecorator : IPropertyDecorator
+    public void Decorate(JsonProperty property, JsonContractResolver contractResolver)
     {
-        public void Decorate(JsonProperty property, JsonContractResolver contractResolver)
-        {
-            if (property.PropertyType.IsEnum && !property.PropertyType.GetCustomAttributes(typeof (FlagsAttribute), false).Any())
-                property.DefaultValueHandling = DefaultValueHandling.Include;
-        }
+        if (property.PropertyType.IsEnum && !property.PropertyType.GetCustomAttributes(typeof (FlagsAttribute), false).Any())
+            property.DefaultValueHandling = DefaultValueHandling.Include;
     }
 }

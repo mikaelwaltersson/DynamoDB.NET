@@ -35,17 +35,10 @@ public class DynamoDBClient : IDynamoDBClient
         IEnumerable<IDynamoDBItemEventHandler> itemEventHandlers, 
         ILogger<DynamoDBClient> logger)
     {
-        if (client == null)
-            throw new ArgumentNullException(nameof(client));
-
-        if (options == null)
-            throw new ArgumentNullException(nameof(options));
-
-        if (serializer == null)
-            throw new ArgumentNullException(nameof(serializer));
-
-        if (logger == null)
-            throw new ArgumentNullException(nameof(logger));
+        ArgumentNullException.ThrowIfNull(client);
+        ArgumentNullException.ThrowIfNull(options);
+        ArgumentNullException.ThrowIfNull(serializer);
+        ArgumentNullException.ThrowIfNull(logger);
 
         this.client = client;
         this.options = options;
@@ -67,13 +60,13 @@ public class DynamoDBClient : IDynamoDBClient
     public Task<T> TryGetAsync<T>(
         PrimaryKey<T> key,
         bool? consistentRead = false,
-        CancellationToken cancellationToken = default(CancellationToken)) where T : class =>
+        CancellationToken cancellationToken = default) where T : class =>
         GetAsync(key, consistentRead, cancellationToken, false);
 
     public Task<T> GetAsync<T>(
         PrimaryKey<T> key,
         bool? consistentRead = false,
-        CancellationToken cancellationToken = default(CancellationToken)) where T : class =>
+        CancellationToken cancellationToken = default) where T : class =>
         GetAsync(key, consistentRead, cancellationToken, true);
 
     async Task<T> GetAsync<T>(
@@ -82,8 +75,7 @@ public class DynamoDBClient : IDynamoDBClient
         CancellationToken cancellationToken,
         bool throwErrorIfNotExists) where T : class
     {
-        if (key == null)
-            throw new ArgumentNullException(nameof(key));
+        ArgumentOutOfRangeException.ThrowIfEqual(key, default);
 
         var request =
             new GetItemRequest
@@ -109,7 +101,7 @@ public class DynamoDBClient : IDynamoDBClient
     public async Task<T> PutAsync<T>(
         T item,
         Expression<Func<T, bool>> condition = null,
-        CancellationToken cancellationToken = default(CancellationToken)) where T : class
+        CancellationToken cancellationToken = default) where T : class
     {
         var operation = CreatePutOperation(item, condition);
 
@@ -135,7 +127,7 @@ public class DynamoDBClient : IDynamoDBClient
         Expression<Func<T, DynamoDBExpressions.UpdateAction>> update,
         Expression<Func<T, bool>> condition = null,
         object version = null,
-        CancellationToken cancellationToken = default(CancellationToken)) where T : class
+        CancellationToken cancellationToken = default) where T : class
     {
         var operation = CreateUpdateOperation(key, update, condition, version);
 
@@ -161,7 +153,7 @@ public class DynamoDBClient : IDynamoDBClient
         PrimaryKey<T> key,
         Expression<Func<T, bool>> condition = null,
         object version = null,
-        CancellationToken cancellationToken = default(CancellationToken)) where T : class
+        CancellationToken cancellationToken = default) where T : class
     {
         var operation = CreateDeleteOperation(key, condition, version);
 
@@ -186,7 +178,7 @@ public class DynamoDBClient : IDynamoDBClient
         int? limit = null,
         bool? consistendRead = false,
         (string, string) index = default((string, string)),
-        CancellationToken cancellationToken = default(CancellationToken)) where T : class
+        CancellationToken cancellationToken = default) where T : class
     {
         var expressionTranslationContext = new ExpressionTranslationContext<T>(serializer, Options.SerializeFlags);
 
@@ -221,11 +213,10 @@ public class DynamoDBClient : IDynamoDBClient
         bool? scanIndexForward = null,
         int? limit = null,
         bool? consistentRead = false,
-        (string, string) index = default((string, string)),
-        CancellationToken cancellationToken = default(CancellationToken)) where T : class
+        (string, string) index = default,
+        CancellationToken cancellationToken = default) where T : class
     {
-        if (keyCondition == null)
-            throw new ArgumentNullException(nameof(keyCondition));
+        ArgumentNullException.ThrowIfNull(keyCondition);
 
         var expressionTranslationContext = new ExpressionTranslationContext<T>(serializer, Options.SerializeFlags);
 
@@ -265,8 +256,7 @@ public class DynamoDBClient : IDynamoDBClient
         T item,
         Expression<Func<T, bool>> condition = null) where T : class
     {
-        if (item == null)
-            throw new ArgumentNullException(nameof(item));
+        ArgumentNullException.ThrowIfNull(item);
 
         var expressionTranslationContext = new ExpressionTranslationContext<T>(serializer, Options.SerializeFlags);
         
@@ -292,11 +282,9 @@ public class DynamoDBClient : IDynamoDBClient
         Expression<Func<T, bool>> condition = null,
         object version = null) where T : class
     {
-        if (key == null)
-            throw new ArgumentNullException(nameof(key));
 
-        if (update == null)
-            throw new ArgumentNullException(nameof(update));
+        ArgumentOutOfRangeException.ThrowIfEqual(key, default);
+        ArgumentNullException.ThrowIfNull(update);
 
         var expressionTranslationContext = new ExpressionTranslationContext<T>(serializer, Options.SerializeFlags);
 
@@ -320,8 +308,7 @@ public class DynamoDBClient : IDynamoDBClient
         Expression<Func<T, bool>> condition = null,
         object version = null) where T : class
     {
-            if (key == null)
-            throw new ArgumentNullException(nameof(key));
+        ArgumentOutOfRangeException.ThrowIfEqual(key, default);
 
         var expressionTranslationContext = new ExpressionTranslationContext<T>(serializer, Options.SerializeFlags);
 
@@ -343,8 +330,7 @@ public class DynamoDBClient : IDynamoDBClient
         Expression<Func<T, bool>> condition, 
         object version = null) where T : class
     {
-            if (key == null)
-            throw new ArgumentNullException(nameof(key));
+        ArgumentOutOfRangeException.ThrowIfEqual(key, default);
 
         var expressionTranslationContext = new ExpressionTranslationContext<T>(serializer, Options.SerializeFlags);
 
@@ -445,7 +431,7 @@ public class DynamoDBClient : IDynamoDBClient
         public void ConditionCheck<T>(PrimaryKey<T> key, Expression<Func<T, bool>> condition, object version = null) where T : class =>
             Add(new TransactWriteItem { ConditionCheck = this.dynamoDBClient.CreateConditionCheckOperation(key, condition, version) });
 
-        public async Task CommitAsync(CancellationToken cancellationToken = default(CancellationToken))
+        public async Task CommitAsync(CancellationToken cancellationToken = default)
         {
             AssertIsNotCommitted();
 

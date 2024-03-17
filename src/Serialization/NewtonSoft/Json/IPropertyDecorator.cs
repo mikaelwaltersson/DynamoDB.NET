@@ -1,9 +1,8 @@
 using Newtonsoft.Json.Serialization;
 
-namespace DynamoDB.Net.Serialization.Newtonsoft.Json
+namespace DynamoDB.Net.Serialization.Newtonsoft.Json;
+
+public interface IPropertyDecorator
 {
-    public interface IPropertyDecorator
-    {
-        void Decorate(JsonProperty property, JsonContractResolver contractResolver);
-    }
+    void Decorate(JsonProperty property, JsonContractResolver contractResolver);
 }

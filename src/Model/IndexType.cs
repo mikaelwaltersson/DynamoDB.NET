@@ -1,9 +1,8 @@
-namespace DynamoDB.Net.Model
+namespace DynamoDB.Net.Model;
+
+public enum IndexType
 {
-    public enum IndexType
-    {
-        PrimaryKey,
-        LocalSecondaryIndex,
-        GlobalSecondaryIndex
-    }
+    PrimaryKey,
+    LocalSecondaryIndex,
+    GlobalSecondaryIndex
 }
