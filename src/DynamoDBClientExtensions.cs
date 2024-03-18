@@ -12,14 +12,14 @@ public static class DynamoDBClientExtensions
 {
     public static Task<object> GetAsync(
         this IDynamoDBClient client,
-        object key,
+        IPrimaryKey key,
         bool? consistentRead = false,
         CancellationToken cancellationToken = default) =>
         ItemOperationsForKeyType(key).GetAsync(client, key, consistentRead, cancellationToken);
 
     public static Task<object> TryGetAsync(
         this IDynamoDBClient client,
-        object key,
+        IPrimaryKey key,
         bool? consistentRead = false,
         CancellationToken cancellationToken = default) =>
         ItemOperationsForKeyType(key).TryGetAsync(client, key, consistentRead, cancellationToken);
@@ -34,7 +34,7 @@ public static class DynamoDBClientExtensions
     public static Task<IDynamoDBPartialResult> ScanAsync(
         this IDynamoDBClient client,
         Type entityType,
-        object exclusiveStartKey = null, 
+        IPrimaryKey exclusiveStartKey = null, 
         int? limit = null,
         bool consistentRead = false,
         CancellationToken cancellationToken = default) =>
@@ -43,10 +43,10 @@ public static class DynamoDBClientExtensions
     public static Task<IReadOnlyList<T>> ScanRemainingAsync<T>(
         this IDynamoDBClient client,
         Expression<Func<T, bool>> filter = null, 
-        PrimaryKey<T> exclusiveStartKey = default(PrimaryKey<T>), 
+        PrimaryKey<T> exclusiveStartKey = default, 
         int? limit = null,
         bool consistentRead = false,
-        (string, string) index = default((string, string)),
+        (string, string) index = default,
         CancellationToken cancellationToken = default) where T : class =>
         RemainingAsync(
             new List<T>(),
@@ -57,7 +57,7 @@ public static class DynamoDBClientExtensions
     public static Task<IReadOnlyList<object>> ScanRemainingAsync(
         this IDynamoDBClient client,
         Type entityType,
-        object exclusiveStartKey = null, 
+        IPrimaryKey exclusiveStartKey = null, 
         int? limit = null,
         bool consistentRead = false,
         CancellationToken cancellationToken = default) =>
@@ -71,11 +71,11 @@ public static class DynamoDBClientExtensions
         this IDynamoDBClient client,
         Expression<Func<T, bool>> keyCondition,
         Expression<Func<T, bool>> filter = null, 
-        PrimaryKey<T> exclusiveStartKey = default(PrimaryKey<T>), 
+        PrimaryKey<T> exclusiveStartKey = default, 
         bool? scanIndexForward = null,
         int? limit = null,
         bool? consistentRead = false,
-        (string, string) index = default((string, string)),
+        (string, string) index = default,
         CancellationToken cancellationToken = default) where T : class =>
         RemainingAsync(
             new List<T>(),
@@ -134,25 +134,25 @@ public static class DynamoDBClientExtensions
 
     interface IItemOperations
     {
-        Task<object> GetAsync(IDynamoDBClient client, object key, bool? consistentRead, CancellationToken cancellationToken);
-        Task<object> TryGetAsync(IDynamoDBClient client, object key, bool? consistentRead, CancellationToken cancellationToken);
+        Task<object> GetAsync(IDynamoDBClient client, IPrimaryKey key, bool? consistentRead, CancellationToken cancellationToken);
+        Task<object> TryGetAsync(IDynamoDBClient client, IPrimaryKey key, bool? consistentRead, CancellationToken cancellationToken);
         Task<object> PutAsync(IDynamoDBClient client, object item, CancellationToken cancellationToken);
-        Task<IDynamoDBPartialResult> ScanAsync(IDynamoDBClient client, object exclusiveStartKey, int? limit, bool? consistentRead, CancellationToken cancellationToken);
+        Task<IDynamoDBPartialResult> ScanAsync(IDynamoDBClient client, IPrimaryKey exclusiveStartKey, int? limit, bool? consistentRead, CancellationToken cancellationToken);
     }
 
     class ItemOperations<T> : IItemOperations where T : class
     {
-        public async Task<object> GetAsync(IDynamoDBClient client, object key, bool? consistentRead, CancellationToken cancellationToken) =>
+        public async Task<object> GetAsync(IDynamoDBClient client, IPrimaryKey key, bool? consistentRead, CancellationToken cancellationToken) =>
             await client.GetAsync((PrimaryKey<T>)key, consistentRead, cancellationToken);
 
-        public async Task<object> TryGetAsync(IDynamoDBClient client, object key, bool? consistentRead, CancellationToken cancellationToken) =>
+        public async Task<object> TryGetAsync(IDynamoDBClient client, IPrimaryKey key, bool? consistentRead, CancellationToken cancellationToken) =>
             await client.TryGetAsync((PrimaryKey<T>)key, consistentRead, cancellationToken);
 
         public async Task<object> PutAsync(IDynamoDBClient client, object item, CancellationToken cancellationToken) =>
             await client.PutAsync((T)item, (Expression<Func<T, bool>>)null, cancellationToken);
 
-        public async Task<IDynamoDBPartialResult> ScanAsync(IDynamoDBClient client, object exclusiveStartKey, int? limit, bool? consistentRead, CancellationToken cancellationToken) =>
-            new DynamoDBPartialResult(await client.ScanAsync<T>(null, exclusiveStartKey as PrimaryKey<T>? ?? default(PrimaryKey<T>), limit, consistentRead, (null, null), cancellationToken));
+        public async Task<IDynamoDBPartialResult> ScanAsync(IDynamoDBClient client, IPrimaryKey exclusiveStartKey, int? limit, bool? consistentRead, CancellationToken cancellationToken) =>
+            new DynamoDBPartialResult(await client.ScanAsync(null, ((PrimaryKey<T>?)exclusiveStartKey).GetValueOrDefault(), limit, consistentRead, (null, null), cancellationToken));
 
         class DynamoDBPartialResult : IDynamoDBPartialResult
         {
@@ -167,7 +167,7 @@ public static class DynamoDBClientExtensions
 
             public int Count => result.Count;
 
-            public object LastEvaluatedKey => result.LastEvaluatedKey;
+            public IPrimaryKey LastEvaluatedKey => result.LastEvaluatedKey;
 
             public IEnumerator<object> GetEnumerator() => result.GetEnumerator();
 

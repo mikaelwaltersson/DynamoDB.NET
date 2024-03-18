@@ -27,10 +27,8 @@ public partial class DynamoDBClientTests
         
         // Act
         var item = 
-            await dynamoDBClient.UpdateAsync(
-                new PrimaryKey<TestModels.UserPost>(
-                    new Guid("550e83bf-5117-4b85-a145-bcca4742cb6c"), 
-                    new DateTime(2022, 10, 18, 16, 42, 0, DateTimeKind.Utc)),
+            await dynamoDBClient.UpdateAsync<TestModels.UserPost>(
+                (new Guid("550e83bf-5117-4b85-a145-bcca4742cb6c"), new DateTime(2022, 10, 18, 16, 42, 0, DateTimeKind.Utc)),
                 userPost =>
                     Set(userPost.RoleIds, 
                         ListAppend(

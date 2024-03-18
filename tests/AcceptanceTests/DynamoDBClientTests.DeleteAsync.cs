@@ -26,10 +26,8 @@ public partial class DynamoDBClientTests
             });
 
         // Act
-        await dynamoDBClient.DeleteAsync(
-            new PrimaryKey<TestModels.UserPost>(
-                new Guid("a684e596-2f85-4259-8108-55eff1e4acce"), 
-                new DateTime(2022, 10, 18, 16, 42, 0, DateTimeKind.Utc)));
+        await dynamoDBClient.DeleteAsync<TestModels.UserPost>(
+            (new Guid("a684e596-2f85-4259-8108-55eff1e4acce"), new DateTime(2022, 10, 18, 16, 42, 0, DateTimeKind.Utc)));
 
         // Assert
         Assert.Empty(
@@ -89,9 +87,7 @@ public partial class DynamoDBClientTests
     public async Task DeleteAsyncIsNoOpForNonExistingKey()
     {
         // Act
-        await dynamoDBClient.DeleteAsync(
-            new PrimaryKey<TestModels.UserPost>(
-                new Guid("4c3af95c-1a5c-460f-ab3b-a2869f6ef3c6"), 
-                new DateTime(2022, 10, 18, 16, 42, 0, DateTimeKind.Utc)));
+        await dynamoDBClient.DeleteAsync<TestModels.UserPost>(
+            (new Guid("4c3af95c-1a5c-460f-ab3b-a2869f6ef3c6"), new DateTime(2022, 10, 18, 16, 42, 0, DateTimeKind.Utc)));
     }       
 }

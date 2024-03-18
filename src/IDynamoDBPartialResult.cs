@@ -2,7 +2,7 @@
 
 namespace DynamoDB.Net;
 
-public interface IDynamoDBPartialResult : IDynamoDBPartialResult<object, object>
+public interface IDynamoDBPartialResult : IDynamoDBPartialResult<object, IPrimaryKey>
 {
 }
 
@@ -10,7 +10,7 @@ public interface IDynamoDBPartialResult<T> : IDynamoDBPartialResult<T, PrimaryKe
 {
 }
 
-public interface IDynamoDBPartialResult<T, TKey> : IReadOnlyList<T> where T : class
+public interface IDynamoDBPartialResult<T, out TKey> : IReadOnlyList<T> where T : class
 {
     TKey LastEvaluatedKey { get; }
 }

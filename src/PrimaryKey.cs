@@ -20,52 +20,53 @@ public static class PrimaryKey
                 ? type.GenericTypeArguments[0]
                 : null;
     }
+
+    public static PrimaryKey<T> ForItem<T>(T item) where T : class => PrimaryKey<T>.ForItem(item);
 }
 
-public readonly struct PrimaryKey<T> : IEquatable<PrimaryKey<T>> where T : class
+public readonly struct PrimaryKey<T> : IPrimaryKey, IEquatable<PrimaryKey<T>> where T : class
 {
-    public PrimaryKey(T item)
-        : this()
-    {
-        if (item != null)
-        {
-            this.PartitionKey = TableDescription.PropertyAccessors<T>.GetPartitionKey(item);
-            this.SortKey = TableDescription.PropertyAccessors<T>.GetSortKey?.Invoke(item);
-        }
-    }
+    public object PartitionKey { get; }
 
-    public PrimaryKey(object partitionKey, object sortKey)
+    public object SortKey { get; }
+
+    public static PrimaryKey<T> FromTuple((object, object) keyTuple)
     {
+        var (partitionKey, sortKey) = keyTuple;
+
         partitionKey = partitionKey?.CastTo(TableDescription.KeyTypes<T>.PartitionKey);
+        
         if (partitionKey == null || partitionKey.Equals(null))
-            throw new ArgumentNullException(nameof(partitionKey));
-
-        this.PartitionKey = partitionKey;
+            throw new ArgumentOutOfRangeException(nameof(keyTuple));
 
         if (HasSortKey)
         {
             sortKey = sortKey?.CastTo(TableDescription.KeyTypes<T>.SortKey);
             if (sortKey == null || sortKey.Equals(null))
-                throw new ArgumentNullException(nameof(sortKey));
-
-            this.SortKey = sortKey;
+                throw new ArgumentOutOfRangeException(nameof(keyTuple));
         }
         else 
         {
             if (!(sortKey == null || sortKey.Equals(null)))
-                throw new ArgumentOutOfRangeException(nameof(sortKey));
+                throw new ArgumentOutOfRangeException(nameof(keyTuple));
 
-            this.SortKey = null;
+            sortKey = null;
         }
+
+        return new(partitionKey, sortKey);
     }
 
+    public static PrimaryKey<T> ForItem(T item)
+    {
+        ArgumentNullException.ThrowIfNull(item);
 
-    public object PartitionKey { get; }
+        return new(
+            TableDescription.PropertyAccessors<T>.GetPartitionKey(item),
+            TableDescription.PropertyAccessors<T>.GetSortKey?.Invoke(item)
+        );
+    }
 
-    public object SortKey { get; }
-
-
-    public static implicit operator PrimaryKey<T>(T value) => new(value);
+    public static implicit operator PrimaryKey<T>((object, object) keyTuple) => FromTuple(keyTuple);
 
     public static bool operator ==(PrimaryKey<T> x, PrimaryKey<T> y) => x.Equals(y);
 
@@ -75,14 +76,19 @@ public readonly struct PrimaryKey<T> : IEquatable<PrimaryKey<T>> where T : class
         KeyEquals(this.PartitionKey, other.PartitionKey) &&
         KeyEquals(this.SortKey, other.SortKey);
 
-    public override bool Equals(object other) => (
-        (other is T || other == null)
-            ? Equals(new PrimaryKey<T>((T)other))
-            : (other is PrimaryKey<T> && Equals((PrimaryKey<T>)other)));
+    public override bool Equals(object other) =>
+        other is T item
+            ? Equals(PrimaryKey.ForItem(item)) // TODO: remove PrimaryKey<T> == T comparision
+            : other is PrimaryKey<T> key
+                ? Equals(key)
+                : other == null && PartitionKey == null && SortKey == null;
 
     public override int GetHashCode()
     {
-        var hashCode = KeyHashCode(PartitionKey);
+        var hashCode = 0;
+        
+        if (PartitionKey != null)
+            hashCode = KeyHashCode(PartitionKey);
         
         if (SortKey != null)
             hashCode = (((hashCode << 5) + hashCode) ^ KeyHashCode(SortKey));
@@ -90,29 +96,28 @@ public readonly struct PrimaryKey<T> : IEquatable<PrimaryKey<T>> where T : class
         return hashCode;
     }
 
-    public override string ToString() => this.ToString(null);
+    public override string ToString() => ToString(null);
 
-    public string ToString(IDynamoDBSerializer keyValueSerializer = null, char keyValueSeparator = ',')
+    public string ToString(IDynamoDBSerializer serializer = null, char separator = ',')
     {
         var s = new StringBuilder();
 
-        if (keyValueSerializer == null)
-            keyValueSerializer = PrimaryKey.DefaultSerializer;
+        serializer ??= PrimaryKey.DefaultSerializer;
 
-        ArgumentNullException.ThrowIfNull(nameof(keyValueSerializer));
+        ArgumentNullException.ThrowIfNull(nameof(serializer));
 
         s.Append(
             EscapeKeyValue(
-                keyValueSerializer.SerializeDynamoDBValue(this.PartitionKey, TableDescription.KeyTypes<T>.PartitionKey),
-                keyValueSeparator));
+                serializer.SerializeDynamoDBValue(this.PartitionKey, TableDescription.KeyTypes<T>.PartitionKey),
+                separator));
 
         if (HasSortKey)
         {
-            s.Append(keyValueSeparator);
+            s.Append(separator);
             s.Append(
                 EscapeKeyValue(
-                    keyValueSerializer.SerializeDynamoDBValue(this.SortKey, TableDescription.KeyTypes<T>.SortKey),
-                    keyValueSeparator));
+                    serializer.SerializeDynamoDBValue(this.SortKey, TableDescription.KeyTypes<T>.SortKey),
+                    separator));
         }
 
         return s.ToString();
@@ -141,6 +146,12 @@ public readonly struct PrimaryKey<T> : IEquatable<PrimaryKey<T>> where T : class
                 : null);
     }
 
+    PrimaryKey(object partitionKey, object sortKey)
+    {
+        PartitionKey = partitionKey;
+        SortKey = sortKey;
+    }
+
     static string UnescapeKeyValue(string s) => Uri.UnescapeDataString(s);
 
     static string EscapeKeyValue(string s, char keyValueSeparator)
@@ -151,12 +162,11 @@ public readonly struct PrimaryKey<T> : IEquatable<PrimaryKey<T>> where T : class
             var c = s[i];
             if (c == '%' || c == keyValueSeparator)
             {
-                if (escaped == null)
-                    escaped = new StringBuilder(s, 0, i, s.Length + 1);
+                escaped ??= new StringBuilder(s, 0, i, s.Length + 1);
                 escaped.Append($"%{((int)c):X2}");
             }
-            else if (escaped != null)
-                escaped.Append(c);
+            else
+                escaped?.Append(c);
         }
         return escaped?.ToString() ?? s;
     }
@@ -171,16 +181,16 @@ public readonly struct PrimaryKey<T> : IEquatable<PrimaryKey<T>> where T : class
         if (Equals(a, b))
             return true;
 
-        if (a is byte[])
-            return ByteArrayComparer.Default.Equals((byte[])a,  b as byte[]);
+        if (a is byte[] byteArray)
+            return ByteArrayComparer.Default.Equals(byteArray,  b as byte[]);
 
         return false;
     }
 
     static int KeyHashCode(object obj)
     {
-        if (obj is byte[])
-            return ByteArrayComparer.Default.GetHashCode((byte[])obj);
+        if (obj is byte[] byteArray)
+            return ByteArrayComparer.Default.GetHashCode(byteArray);
 
         return obj.GetHashCode();
     }

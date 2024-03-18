@@ -1,8 +1,9 @@
-namespace DynamoDB.Net.Tests.UnitTests;
 
 using System.Linq.Expressions;
 using DynamoDB.Net.Model;
 using DynamoDB.Net.Serialization.Newtonsoft.Json;
+
+namespace DynamoDB.Net.Tests.UnitTests;
 
 public class DynamoDBClientExtensionsTests
 {
@@ -18,7 +19,7 @@ public class DynamoDBClientExtensionsTests
     [Fact]
     public async void CanGetAsync()
     {
-        var key = new PrimaryKey<Item>("a", 1);
+        var key = PrimaryKey<Item>.FromTuple(("a", 1));
         var item = new Item { Partition = "a", Order = 1 };
 
         client.Items.Add(key, item);
@@ -31,7 +32,7 @@ public class DynamoDBClientExtensionsTests
     [Fact]
     public async void CanTryGetAsync()
     {
-        var key = new PrimaryKey<Item>("a", 1);
+        var key = PrimaryKey<Item>.FromTuple(("a", 1));
         var item = new Item { Partition = "a", Order = 1 };
 
         client.Items.Add(key, item);
@@ -44,7 +45,7 @@ public class DynamoDBClientExtensionsTests
     [Fact]
     public async void CanPutAsync()
     {
-        var key = new PrimaryKey<Item>("a", 1);
+        var key = PrimaryKey<Item>.FromTuple(("a", 1));
         var item = new Item { Partition = "a", Order = 1 };
 
         var actual = await DynamoDBClientExtensions.PutAsync(client, item);
@@ -60,13 +61,13 @@ public class DynamoDBClientExtensionsTests
         var item2 = new Item { Partition = "a", Order = 2 };
         var item3 = new Item { Partition = "b", Order = 1 };
 
-        client.Items.Add(new PrimaryKey<Item>(item1), item1);
-        client.Items.Add(new PrimaryKey<Item>(item2), item2);
-        client.Items.Add(new PrimaryKey<Item>(item3), item3);
+        client.Items.Add((item1), item1);
+        client.Items.Add((item2), item2);
+        client.Items.Add((item3), item3);
 
         var actual = await DynamoDBClientExtensions.ScanAsync(client, typeof (Item));
 
-        Assert.Equal(new object[] { item1, item2, item3 }, actual);
+        Assert.Equal([item1, item2, item3], actual);
     }
 
     [Fact]
@@ -79,18 +80,18 @@ public class DynamoDBClientExtensionsTests
         var item3 = new Item { Partition = "b", Order = 1 };
         var item4 = new Item { Partition = "b", Order = 2 };
 
-        client.Items.Add(new PrimaryKey<Item>(item1), item1);
-        client.Items.Add(new PrimaryKey<Item>(item2), item2);
-        client.Items.Add(new PrimaryKey<Item>(item3), item3);
-        client.Items.Add(new PrimaryKey<Item>(item4), item4);
+        client.Items.Add((item1), item1);
+        client.Items.Add((item2), item2);
+        client.Items.Add((item3), item3);
+        client.Items.Add((item4), item4);
 
         var actual1 = await DynamoDBClientExtensions.ScanRemainingAsync<Item>(client);
         var actual2 = await DynamoDBClientExtensions.ScanRemainingAsync(client, typeof (Item));
         var actual3 = await DynamoDBClientExtensions.ScanRemainingAsync(client, typeof (Item), limit: 3);
 
-        Assert.Equal(new object[] { item1, item2, item3, item4 }, actual1);
-        Assert.Equal(new object[] { item1, item2, item3, item4 }, actual2);
-        Assert.Equal(new object[] { item1, item2, item3 }, actual3);
+        Assert.Equal([item1, item2, item3, item4], actual1);
+        Assert.Equal([item1, item2, item3, item4], actual2);
+        Assert.Equal([item1, item2, item3], actual3);
     }
 
     [Fact]
@@ -104,11 +105,11 @@ public class DynamoDBClientExtensionsTests
         var item4 = new Item { Partition = "b", Order = 2 };
         var item5 = new Item { Partition = "b", Order = 3 };
 
-        client.Items.Add(new PrimaryKey<Item>(item1), item1);
-        client.Items.Add(new PrimaryKey<Item>(item2), item2);
-        client.Items.Add(new PrimaryKey<Item>(item3), item3);
-        client.Items.Add(new PrimaryKey<Item>(item4), item4);
-        client.Items.Add(new PrimaryKey<Item>(item5), item5);
+        client.Items.Add((item1), item1);
+        client.Items.Add((item2), item2);
+        client.Items.Add((item3), item3);
+        client.Items.Add((item4), item4);
+        client.Items.Add((item5), item5);
 
         var actual = await DynamoDBClientExtensions.QueryRemainingAsync<Item>(client, item => item.Partition == "b");
 
@@ -139,14 +140,14 @@ public class DynamoDBClientExtensionsTests
         public Task<T?> TryGetAsync<T>(
             PrimaryKey<T> key, 
             bool? consistentRead = false,
-            CancellationToken cancellationToken = default(CancellationToken)) where T : class =>
+            CancellationToken cancellationToken = default) where T : class =>
             Task.FromResult((T?)Items.GetValueOrDefault(key));
 
        public Task<T> PutAsync<T>(
             T item, 
             Expression<Func<T, bool>>? condition = null, 
-            CancellationToken cancellationToken = default(CancellationToken)) where T : class =>
-            Task.FromResult((T)(Items[new PrimaryKey<T>(item)] = item));
+            CancellationToken cancellationToken = default) where T : class =>
+            Task.FromResult((T)(Items[PrimaryKey.ForItem(item)] = item));
         
         public Task<T> UpdateAsync<T>(
             PrimaryKey<T> key, 
@@ -190,19 +191,18 @@ public class DynamoDBClientExtensionsTests
                         OfType<T>().
                         Where(condition).
                         SkipWhile(item => 
-                            !exclusiveStartKey.Equals(default(PrimaryKey<T>)) &&
-                            !exclusiveStartKey.Equals(new PrimaryKey<T>(item))).
-                        Skip(exclusiveStartKey.Equals(default(PrimaryKey<T>)) ? 0 : 1).
+                            !exclusiveStartKey.Equals(default) &&
+                            !exclusiveStartKey.Equals(PrimaryKey.ForItem(item))).
+                        Skip(exclusiveStartKey.Equals(default) ? 0 : 1).
                         Take(Math.Min(limit ?? int.MaxValue, MaxPageSize))));
 
         public IDynamoDBWriteTransaction BeginWriteTransaction() =>
             throw new NotImplementedException();
     }
 
-    class PartialResult<T> : List<T>, IDynamoDBPartialResult<T> where T : class
+    class PartialResult<T>(IEnumerable<T> collection) 
+        : List<T>(collection), IDynamoDBPartialResult<T> where T : class
     {
-        public PartialResult(IEnumerable<T> collection) : base(collection) {}
-
-        public PrimaryKey<T> LastEvaluatedKey => this.Count > 0 ? new PrimaryKey<T>(this.Last()) : default(PrimaryKey<T>);
+        public PrimaryKey<T> LastEvaluatedKey => this.Count > 0 ? PrimaryKey.ForItem(this.Last()) : default;
     }
 }

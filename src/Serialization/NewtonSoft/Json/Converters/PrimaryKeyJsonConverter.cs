@@ -36,14 +36,14 @@ public class PrimaryKeyJsonConverter<T> : JsonConverter where T : class
 
         var values = reader.ReadProperties(properties, serializer);
 
-        return new PrimaryKey<T>(values[0], values[1]);
+        return PrimaryKey<T>.FromTuple((values[0], values[1]));
     }
 
     public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
     {
         var primaryKey = (PrimaryKey<T>)value;
 
-        if (primaryKey == null)
+        if (primaryKey == default)
         {
             writer.WriteNull();
             return;

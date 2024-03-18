@@ -26,10 +26,8 @@ public partial class DynamoDBClientTests
         
         // Act
         var item = 
-            await dynamoDBClient.TryGetAsync(
-                new PrimaryKey<TestModels.UserPost>(
-                    new Guid("4793561c-e693-4e58-b31f-99bd9df840ab"), 
-                    new DateTime(2022, 10, 18, 16, 42, 0, DateTimeKind.Utc)));
+            await dynamoDBClient.TryGetAsync<TestModels.UserPost>(
+                (new Guid("4793561c-e693-4e58-b31f-99bd9df840ab"), new DateTime(2022, 10, 18, 16, 42, 0, DateTimeKind.Utc)));
 
         // Assert
         Assert.NotNull(item);
@@ -41,10 +39,8 @@ public partial class DynamoDBClientTests
     {
         // Act
         var item = 
-            await dynamoDBClient.TryGetAsync(
-                new PrimaryKey<TestModels.UserPost>(
-                    new Guid("00000000-0000-0000-0000-000000000001"), 
-                    new DateTime(2022, 10, 18, 16, 42, 0, DateTimeKind.Utc)));
+            await dynamoDBClient.TryGetAsync<TestModels.UserPost>(
+                (new Guid("00000000-0000-0000-0000-000000000001"), new DateTime(2022, 10, 18, 16, 42, 0, DateTimeKind.Utc)));
 
         // Assert
         Assert.Null(item);

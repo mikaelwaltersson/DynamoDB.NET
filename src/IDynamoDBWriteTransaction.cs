@@ -31,7 +31,7 @@ public interface IDynamoDBWriteTransaction
         Expression<Func<bool>> condition = null, 
         object version = null) where T : class => 
         Update(
-            new PrimaryKey<T>(item),
+            PrimaryKey.ForItem(item),
             update.ReplaceConstantWithParameter(item),
             condition?.ReplaceConstantWithParameter(item),
             version);
@@ -46,7 +46,7 @@ public interface IDynamoDBWriteTransaction
         Expression<Func<bool>> condition = null, 
         object version = null) where T : class => 
         Delete(
-            new PrimaryKey<T>(item),
+            PrimaryKey.ForItem(item),
             condition?.ReplaceConstantWithParameter(item),
             version);
 
@@ -60,7 +60,7 @@ public interface IDynamoDBWriteTransaction
         Expression<Func<bool>> condition, 
         object version = null) where T : class =>
         ConditionCheck(
-            new PrimaryKey<T>(item),
+            PrimaryKey.ForItem(item),
             condition.ReplaceConstantWithParameter(item),
             version);
 

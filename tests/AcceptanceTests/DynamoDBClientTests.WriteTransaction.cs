@@ -43,10 +43,8 @@ public partial class DynamoDBClientTests
                 }
             });
 
-        transaction.Update(
-            new PrimaryKey<TestModels.UserPost>(
-                new Guid("40822a39-1d07-4170-9486-000000000001"), 
-                new DateTime(2022, 10, 18, 16, 1, 0, DateTimeKind.Utc)),
+        transaction.Update<TestModels.UserPost>(
+            (new Guid("40822a39-1d07-4170-9486-000000000001"), new DateTime(2022, 10, 18, 16, 1, 0, DateTimeKind.Utc)),
             userPost =>
                 Set(userPost.RoleIds,
                     ListAppend(
@@ -57,16 +55,12 @@ public partial class DynamoDBClientTests
                             new Guid("8f671114-c522-4a5b-9490-0165a1b8e56e")
                         })));
 
-        transaction.Delete(
-            new PrimaryKey<TestModels.UserPost>(
-                new Guid("40822a39-1d07-4170-9486-000000000002"), 
-                new DateTime(2022, 10, 18, 16, 2, 0, DateTimeKind.Utc)));
+        transaction.Delete<TestModels.UserPost>(
+            (new Guid("40822a39-1d07-4170-9486-000000000002"), new DateTime(2022, 10, 18, 16, 2, 0, DateTimeKind.Utc)));
 
-        transaction.ConditionCheck(
-            new PrimaryKey<TestModels.UserPost>(
-                new Guid("40822a39-1d07-4170-9486-000000000003"), 
-                new DateTime(2022, 10, 18, 16, 3, 0, DateTimeKind.Utc)),
-                userPost => Size(userPost.RoleIds) > 1);
+        transaction.ConditionCheck<TestModels.UserPost>(
+            (new Guid("40822a39-1d07-4170-9486-000000000003"), new DateTime(2022, 10, 18, 16, 3, 0, DateTimeKind.Utc)),
+            userPost => Size(userPost.RoleIds) > 1);
 
         await transaction.CommitAsync();
 

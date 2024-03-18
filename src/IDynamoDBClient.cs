@@ -46,7 +46,7 @@ public interface IDynamoDBClient
         object version = null,
         CancellationToken cancellationToken = default) where T : class => 
         UpdateAsync(
-            new PrimaryKey<T>(item),
+            PrimaryKey.ForItem(item),
             update.ReplaceConstantWithParameter(item),
             condition?.ReplaceConstantWithParameter(item),
             version,
@@ -64,7 +64,7 @@ public interface IDynamoDBClient
         object version = null,
         CancellationToken cancellationToken = default) where T : class => 
         DeleteAsync(
-            new PrimaryKey<T>(item),
+            PrimaryKey.ForItem(item),
             condition?.ReplaceConstantWithParameter(item),
             version,
             cancellationToken);
