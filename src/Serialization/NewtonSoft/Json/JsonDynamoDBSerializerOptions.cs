@@ -4,7 +4,7 @@ using Newtonsoft.Json.Serialization;
 
 namespace DynamoDB.Net.Serialization.Newtonsoft.Json;
 
-public class JsonDynamoDbSerializerOptions
+public class JsonDynamoDBSerializerOptions
 {
     public Action<JsonSerializerSettings, IContractResolver> ConfigureSerializer { get; set; } = DefaultConfigureSerializer;
     

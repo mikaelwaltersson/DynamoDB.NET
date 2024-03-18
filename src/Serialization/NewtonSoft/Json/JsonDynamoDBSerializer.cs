@@ -14,16 +14,16 @@ using TableDescription = DynamoDB.Net.Model.TableDescription;
 
 namespace DynamoDB.Net.Serialization.Newtonsoft.Json;
 
-public class JsonDynamoDbSerializer : IDynamoDBSerializer
+public class JsonDynamoDBSerializer : IDynamoDBSerializer
 {
     JsonSerializer serializer;
 
-    static JsonDynamoDbSerializer()
+    static JsonDynamoDBSerializer()
     {
-        PrimaryKey.DefaultSerializer = new JsonDynamoDbSerializer(Options.Create(new JsonDynamoDbSerializerOptions()));
+        PrimaryKey.DefaultSerializer = new JsonDynamoDBSerializer(Options.Create(new JsonDynamoDBSerializerOptions()));
     }
 
-    public JsonDynamoDbSerializer(IOptions<JsonDynamoDbSerializerOptions> options)
+    public JsonDynamoDBSerializer(IOptions<JsonDynamoDBSerializerOptions> options)
     {
         this.serializer = JsonSerializer.Create(GetSerializerSettings(options));
     }
@@ -74,7 +74,7 @@ public class JsonDynamoDbSerializer : IDynamoDBSerializer
         }
     }
 
-    static JsonSerializerSettings GetSerializerSettings(IOptions<JsonDynamoDbSerializerOptions> options)
+    static JsonSerializerSettings GetSerializerSettings(IOptions<JsonDynamoDBSerializerOptions> options)
     {
         ArgumentNullException.ThrowIfNull(options);
 

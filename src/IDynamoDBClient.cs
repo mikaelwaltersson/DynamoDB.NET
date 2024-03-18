@@ -71,20 +71,20 @@ public interface IDynamoDBClient
 
     Task<IDynamoDBPartialResult<T>> ScanAsync<T>(
         Expression<Func<T, bool>> filter = null, 
-        PrimaryKey<T> exclusiveStartKey = default(PrimaryKey<T>), 
+        PrimaryKey<T> exclusiveStartKey = default, 
         int? limit = null,
         bool? consistentRead = false,
-        (string, string) index = default((string, string)),
+        (string, string) index = default,
         CancellationToken cancellationToken = default) where T : class;
 
     Task<IDynamoDBPartialResult<T>> QueryAsync<T>(
         Expression<Func<T, bool>> keyCondition,
         Expression<Func<T, bool>> filter = null, 
-        PrimaryKey<T> exclusiveStartKey = default(PrimaryKey<T>), 
+        PrimaryKey<T> exclusiveStartKey = default, 
         bool? scanIndexForward = null,
         int? limit = null,
         bool? consistentRead = false,
-        (string, string) index = default((string, string)),
+        (string, string) index = default,
         CancellationToken cancellationToken = default) where T : class;
 
     IDynamoDBWriteTransaction BeginWriteTransaction();
