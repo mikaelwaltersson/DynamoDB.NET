@@ -52,17 +52,17 @@ public static class ExpressionTranslator
     }
 
     public static string Translate<T>(this Expression<Func<T, bool>> expression, ExpressionTranslationContext<T> context) where T : class => 
-        expression.Body.Translate(context);
+        expression.Body.ResolveConstants().Translate(context);
 
     public static string Translate<T>(this Expression<Func<T, DynamoDBExpressions.UpdateAction>> expression, ExpressionTranslationContext<T> context) where T : class => 
-        expression.Apply(new HandleEmptyValuesForUpdateVisitor(context.IsSerializedToEmpty)).Body.Translate(context);
+        expression.Apply(new HandleEmptyValuesForUpdateVisitor(context.IsSerializedToEmpty)).Body.ResolveConstants().Translate(context);
 
     public static Expression<Func<T, TResult>> ReplaceConstantWithParameter<T, TResult>(this Expression<Func<TResult>> expression, T value, [CallerArgumentExpression(nameof(value))] string parameterName = null)
     {
         var parameter = Expression.Parameter(typeof(T), parameterName);
 
         return Expression.Lambda<Func<T, TResult>>(
-            expression.Body.FindReplace(
+            expression.Body.ResolveConstants().FindReplace(
                 find: expression => expression.IsReferenceTo(value),
                 replace: parameter),
             expression.Parameters.Append(parameter));
@@ -70,6 +70,9 @@ public static class ExpressionTranslator
 
     public static Expression FindReplace(this Expression expression, Func<Expression, bool> find, Expression replace) =>
         new FindReplaceVisitor(find, replace).Visit(expression);
+
+    public static Expression ResolveConstants(this Expression expression) =>
+        new ResolveConstantsVisitor().Visit(expression);
 
     static string SurroundWithParenthesesIfNeeded(string expression)
     {
@@ -124,65 +127,65 @@ public static class ExpressionTranslator
 
         expression = expression.TryReduceExpression();
 
-        switch (expression.NodeType)
+        return expression.NodeType switch
         {
-            case ExpressionType.Convert:
-            case ExpressionType.ConvertChecked:
-                return ((UnaryExpression)expression).Operand.Translate(context);
-
-            case ExpressionType.Call:
-                return ((MethodCallExpression)expression).TranslateCall(context);
-
-            case ExpressionType.Constant:
-                return ((ConstantExpression)expression).TranslateConstant(context);
-
-            case ExpressionType.MemberAccess:
-                return ((MemberExpression)expression).TranslateMember(context);
-
-            case ExpressionType.Index:
-            case ExpressionType.ArrayIndex:
-                return ((IndexExpression)expression).TranslateIndex(context);
-
-            case ExpressionType.Add:
-            case ExpressionType.AddChecked:
-                return ((BinaryExpression)expression).TranslateBinary("+", context);
-
-            case ExpressionType.Subtract:
-            case ExpressionType.SubtractChecked:
-                return ((BinaryExpression)expression).TranslateBinary("-", context);
-
-            case ExpressionType.Equal:
-                return ((BinaryExpression)expression).TranslateBinary("=", context);
-
-            case ExpressionType.NotEqual:
-                return ((BinaryExpression)expression).TranslateBinary("<>", context);
-
-            case ExpressionType.LessThan:
-                return ((BinaryExpression)expression).TranslateBinary("<", context);
-
-            case ExpressionType.LessThanOrEqual:
-                return ((BinaryExpression)expression).TranslateBinary("<=", context);
-
-            case ExpressionType.GreaterThan:
-                return ((BinaryExpression)expression).TranslateBinary(">", context);
-
-            case ExpressionType.GreaterThanOrEqual:
-                return ((BinaryExpression)expression).TranslateBinary(">=", context);
-
-            case ExpressionType.AndAlso:
-                return ((BinaryExpression)expression).TranslateBinary("AND", context);
-
-            case ExpressionType.OrElse:
-                return ((BinaryExpression)expression).TranslateBinary("OR", context);
-
-            case ExpressionType.Not:
-                return ((UnaryExpression)expression).TranslateUnary("NOT", context);
-
-            case ExpressionType.And:
-                return ((BinaryExpression)expression).CombineUpdateActions(context);
-        }
-
-        return Unsupported(expression);
+            ExpressionType.Convert or 
+            ExpressionType.ConvertChecked => 
+                ((UnaryExpression)expression).Operand.Translate(context),
+            
+            ExpressionType.Call => 
+                ((MethodCallExpression)expression).TranslateCall(context),
+            
+            ExpressionType.Constant => 
+                ((ConstantExpression)expression).TranslateConstant(context),
+            
+            ExpressionType.MemberAccess => 
+                ((MemberExpression)expression).TranslateMember(context),
+            
+            ExpressionType.Index or 
+            ExpressionType.ArrayIndex => 
+                ((IndexExpression)expression).TranslateIndex(context),
+            
+            ExpressionType.Add or 
+            ExpressionType.AddChecked => 
+                ((BinaryExpression)expression).TranslateBinary("+", context),
+            
+            ExpressionType.Subtract or 
+            ExpressionType.SubtractChecked => 
+                ((BinaryExpression)expression).TranslateBinary("-", context),
+            
+            ExpressionType.Equal => 
+                ((BinaryExpression)expression).TranslateBinary("=", context),
+            
+            ExpressionType.NotEqual => 
+                ((BinaryExpression)expression).TranslateBinary("<>", context),
+            
+            ExpressionType.LessThan => 
+                ((BinaryExpression)expression).TranslateBinary("<", context),
+            
+            ExpressionType.LessThanOrEqual => 
+                ((BinaryExpression)expression).TranslateBinary("<=", context),
+            
+            ExpressionType.GreaterThan => 
+                ((BinaryExpression)expression).TranslateBinary(">", context),
+            
+            ExpressionType.GreaterThanOrEqual => 
+                ((BinaryExpression)expression).TranslateBinary(">=", context),
+            
+            ExpressionType.AndAlso => 
+                ((BinaryExpression)expression).TranslateBinary("AND", context),
+            
+            ExpressionType.OrElse => 
+                ((BinaryExpression)expression).TranslateBinary("OR", context),
+            
+            ExpressionType.Not => 
+                ((UnaryExpression)expression).TranslateUnary("NOT", context),
+            
+            ExpressionType.And => 
+                ((BinaryExpression)expression).CombineUpdateActions(context),
+            
+            _ => Unsupported(expression),
+        };
     }
 
     static string TranslateCall<T>(this MethodCallExpression expression, ExpressionTranslationContext<T> context) where T : class
@@ -373,12 +376,10 @@ public static class ExpressionTranslator
 
     static Expression TryReduceConditionalExpression(Expression expression)
     {
-        if (expression is ConditionalExpression)
+        if (expression is ConditionalExpression conditionalExpression &&
+            conditionalExpression.Test.TryReduceExpression() is ConstantExpression { Value: bool testValue })
         {
-            var conditional = (ConditionalExpression)expression;
-            var testValue = (conditional.Test.TryReduceExpression() as ConstantExpression)?.Value;
-            if (testValue is bool)
-                expression = ((bool)testValue ? conditional.IfTrue : conditional.IfFalse);
+            expression = testValue ? conditionalExpression.IfTrue : conditionalExpression.IfFalse;
         }
 
         return expression;
@@ -441,7 +442,7 @@ public static class ExpressionTranslator
 
     static string Unsupported(Expression expression)
     {
-        throw new InvalidOperationException($"Unsupported expression: {expression.Type} {expression}");
+        throw new InvalidOperationException($"Expression is unsupported: {expression}");
     }
 
     class FindFirstVisitor<TValue> : ExpressionVisitor
@@ -488,18 +489,16 @@ public static class ExpressionTranslator
         MethodCallExpression ReplaceSetWithRemoveForEmptyValues(MethodCallExpression node)
         {
             if (node.Method.DeclaringType == typeof(DynamoDBExpressions) &&
-                node.Method.Name == nameof(DynamoDBExpressions.Set))
+                node.Method.Name == nameof(DynamoDBExpressions.Set) &&
+                TryReduceExpression(node.Arguments[1]) is ConstantExpression operandArgument && 
+                isSerializedToEmpty(operandArgument.Value))
             {
-                var operandArgument = TryReduceExpression(node.Arguments[1]) as ConstantExpression;
-                if (operandArgument != null && isSerializedToEmpty(operandArgument.Value))
-                {
-                    var pathArgument = node.Arguments[0];
-                    return Expression.Call(
-                        typeof(DynamoDBExpressions),
-                        nameof(DynamoDBExpressions.Remove),
-                        new[] { pathArgument.Type },
-                        pathArgument);
-                }
+                var pathArgument = node.Arguments[0];
+                return Expression.Call(
+                    typeof(DynamoDBExpressions),
+                    nameof(DynamoDBExpressions.Remove),
+                    [pathArgument.Type],
+                    pathArgument);
             }
 
             return node;
@@ -519,6 +518,23 @@ public static class ExpressionTranslator
 
         public override Expression Visit(Expression node) =>
             find(node) ? replace : base.Visit(node);
+    }
+
+    class ResolveConstantsVisitor : ExpressionVisitor
+    {
+        protected override Expression VisitMethodCall(MethodCallExpression node)
+        {
+            if (node.Method.DeclaringType == typeof(DynamoDBExpressions) && 
+                node.Method.Name == nameof(DynamoDBExpressions.Constant))
+            {
+                if (node.Arguments[0].TryReduceExpression() is not ConstantExpression constantExpression)
+                    throw new InvalidOperationException($"Expression can not be resolved as constant: {node.Arguments[0]}");
+
+                return constantExpression;
+            }
+
+            return base.VisitMethodCall(node);
+        }
     }
 
     static class Identifier

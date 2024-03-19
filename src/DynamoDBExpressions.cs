@@ -76,6 +76,9 @@ public static class DynamoDBExpressions
     [TranslatesTo("")]
     public static UpdateAction NoOp<T>(T path) => DynamoDBMethod<UpdateAction>();
 
+    [TranslatesTo("")]
+    public static T Constant<T>(T value) => value;
+
 
     [TranslatesTo("if_not_exists({0}, {1})")]
     public static T IfNotExists<T>(T path, T operand) => DynamoDBMethod<T>();

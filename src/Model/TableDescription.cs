@@ -153,6 +153,7 @@ public class TableDescription
         TableRequests.UpdateTableProvisionedThroughput(this, options, readCapacityUnits, writeCapacityUnits);
 
 
+    // Move to PrimaryKey
     public static class KeyTypes<T>
     {
         static KeyTypes()
@@ -167,6 +168,7 @@ public class TableDescription
         public static readonly Type SortKey;
     }     
 
+    // Remove this class
     public static class PropertyNames<T>
     {
         static PropertyNames()
@@ -183,6 +185,7 @@ public class TableDescription
         public static readonly string Version;
     }  
 
+    // Move to PrimaryKey
     public static class PropertyAccessors<T>
     {
         static PropertyAccessors()
