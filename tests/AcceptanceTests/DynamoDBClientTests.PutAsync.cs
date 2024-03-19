@@ -12,7 +12,7 @@ public partial class DynamoDBClientTests
             new TestModels.UserPost
             {
                 UserId = new Guid("65111529-2dbf-4f49-85d4-f0221035f9d5"),
-                Timestamp = new DateTime(2022, 10, 18, 16, 42, 0, DateTimeKind.Utc),
+                Timestamp = new DateTimeOffset(2022, 10, 18, 16, 42, 0, TimeSpan.Zero),
                 RoleIds =
                 { 
                     new Guid("cbaf96a2-8c1d-46b1-952c-59596145b158"),
@@ -27,7 +27,7 @@ public partial class DynamoDBClientTests
                 new Dictionary<string, AttributeValue>
                 {
                     ["userId"] = new AttributeValue { S = "65111529-2dbf-4f49-85d4-f0221035f9d5" },
-                    ["timestamp"] = new AttributeValue { S = "2022-10-18T16:42Z" }
+                    ["timestamp"] = new AttributeValue { S = "2022-10-18T16:42:00.0000000+00:00" }
                 })).Item;
 
         Assert.NotNull(item);

@@ -1,78 +1,18 @@
 ﻿{
   "userId": {
-    "B": null,
-    "BOOL": false,
-    "IsBOOLSet": false,
-    "BS": [],
-    "L": [],
-    "IsLSet": false,
-    "M": {},
-    "IsMSet": false,
-    "N": null,
-    "NS": [],
-    "NULL": false,
-    "S": "65111529-2dbf-4f49-85d4-f0221035f9d5",
-    "SS": []
+    "S": "65111529-2dbf-4f49-85d4-f0221035f9d5"
   },
   "timestamp": {
-    "B": null,
-    "BOOL": false,
-    "IsBOOLSet": false,
-    "BS": [],
-    "L": [],
-    "IsLSet": false,
-    "M": {},
-    "IsMSet": false,
-    "N": null,
-    "NS": [],
-    "NULL": false,
-    "S": "2022-10-18T16:42Z",
-    "SS": []
+    "S": "2022-10-18T16:42:00.0000000+00:00"
   },
   "roleIds": {
-    "B": null,
-    "BOOL": false,
-    "IsBOOLSet": false,
-    "BS": [],
     "L": [
       {
-        "B": null,
-        "BOOL": false,
-        "IsBOOLSet": false,
-        "BS": [],
-        "L": [],
-        "IsLSet": false,
-        "M": {},
-        "IsMSet": false,
-        "N": null,
-        "NS": [],
-        "NULL": false,
-        "S": "cbaf96a2-8c1d-46b1-952c-59596145b158",
-        "SS": []
+        "S": "cbaf96a2-8c1d-46b1-952c-59596145b158"
       },
       {
-        "B": null,
-        "BOOL": false,
-        "IsBOOLSet": false,
-        "BS": [],
-        "L": [],
-        "IsLSet": false,
-        "M": {},
-        "IsMSet": false,
-        "N": null,
-        "NS": [],
-        "NULL": false,
-        "S": "585381ad-785e-4bc9-9c85-da8a0b754dc6",
-        "SS": []
+        "S": "585381ad-785e-4bc9-9c85-da8a0b754dc6"
       }
-    ],
-    "IsLSet": true,
-    "M": {},
-    "IsMSet": false,
-    "N": null,
-    "NS": [],
-    "NULL": false,
-    "S": null,
-    "SS": []
+    ]
   }
 }

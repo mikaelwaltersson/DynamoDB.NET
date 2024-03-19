@@ -174,10 +174,10 @@ public class DynamoDBClient : IDynamoDBClient
 
     public async Task<IDynamoDBPartialResult<T>> ScanAsync<T>(
         Expression<Func<T, bool>> filter = null,
-        PrimaryKey<T> exclusiveStartKey = default(PrimaryKey<T>),
+        PrimaryKey<T> exclusiveStartKey = default,
         int? limit = null,
         bool? consistendRead = false,
-        (string, string) index = default((string, string)),
+        (string, string) index = default,
         CancellationToken cancellationToken = default) where T : class
     {
         var expressionTranslationContext = new ExpressionTranslationContext<T>(serializer, Options.SerializeFlags);
@@ -209,7 +209,7 @@ public class DynamoDBClient : IDynamoDBClient
     public async Task<IDynamoDBPartialResult<T>> QueryAsync<T>(
         Expression<Func<T, bool>> keyCondition,
         Expression<Func<T, bool>> filter = null,
-        PrimaryKey<T> exclusiveStartKey = default(PrimaryKey<T>),
+        PrimaryKey<T> exclusiveStartKey = default,
         bool? scanIndexForward = null,
         int? limit = null,
         bool? consistentRead = false,
@@ -226,7 +226,7 @@ public class DynamoDBClient : IDynamoDBClient
                 TableName = Model.TableDescription.GetTableName<T>(Options),
                 ExclusiveStartKey = Serialize(exclusiveStartKey),
                 KeyConditionExpression = keyCondition.Translate(expressionTranslationContext),
-                IndexName = index != default((string, string)) 
+                IndexName = index != default 
                     ? index.GetIndexName(expressionTranslationContext) 
                     : keyCondition.GetIndexName(expressionTranslationContext),
                 FilterExpression = filter?.Translate(expressionTranslationContext),

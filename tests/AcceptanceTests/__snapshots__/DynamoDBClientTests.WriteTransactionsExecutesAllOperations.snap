@@ -1,266 +1,62 @@
 ﻿[
   {
     "userId": {
-      "B": null,
-      "BOOL": false,
-      "IsBOOLSet": false,
-      "BS": [],
-      "L": [],
-      "IsLSet": false,
-      "M": {},
-      "IsMSet": false,
-      "N": null,
-      "NS": [],
-      "NULL": false,
-      "S": "40822a39-1d07-4170-9486-000000000004",
-      "SS": []
+      "S": "40822a39-1d07-4170-9486-000000000004"
     },
     "timestamp": {
-      "B": null,
-      "BOOL": false,
-      "IsBOOLSet": false,
-      "BS": [],
-      "L": [],
-      "IsLSet": false,
-      "M": {},
-      "IsMSet": false,
-      "N": null,
-      "NS": [],
-      "NULL": false,
-      "S": "2022-10-18T16:04Z",
-      "SS": []
+      "S": "2022-10-18T16:04:00.0000000+00:00"
     },
     "roleIds": {
-      "B": null,
-      "BOOL": false,
-      "IsBOOLSet": false,
-      "BS": [],
       "L": [
         {
-          "B": null,
-          "BOOL": false,
-          "IsBOOLSet": false,
-          "BS": [],
-          "L": [],
-          "IsLSet": false,
-          "M": {},
-          "IsMSet": false,
-          "N": null,
-          "NS": [],
-          "NULL": false,
-          "S": "4bd6e5ff-3f77-4895-b861-000000000004",
-          "SS": []
+          "S": "4bd6e5ff-3f77-4895-b861-000000000004"
         },
         {
-          "B": null,
-          "BOOL": false,
-          "IsBOOLSet": false,
-          "BS": [],
-          "L": [],
-          "IsLSet": false,
-          "M": {},
-          "IsMSet": false,
-          "N": null,
-          "NS": [],
-          "NULL": false,
-          "S": "34f9d49a-706d-4bed-b9e8-000000000004",
-          "SS": []
+          "S": "34f9d49a-706d-4bed-b9e8-000000000004"
         }
-      ],
-      "IsLSet": true,
-      "M": {},
-      "IsMSet": false,
-      "N": null,
-      "NS": [],
-      "NULL": false,
-      "S": null,
-      "SS": []
+      ]
     }
   },
   {
     "userId": {
-      "B": null,
-      "BOOL": false,
-      "IsBOOLSet": false,
-      "BS": [],
-      "L": [],
-      "IsLSet": false,
-      "M": {},
-      "IsMSet": false,
-      "N": null,
-      "NS": [],
-      "NULL": false,
-      "S": "40822a39-1d07-4170-9486-000000000003",
-      "SS": []
+      "S": "40822a39-1d07-4170-9486-000000000003"
     },
     "timestamp": {
-      "B": null,
-      "BOOL": false,
-      "IsBOOLSet": false,
-      "BS": [],
-      "L": [],
-      "IsLSet": false,
-      "M": {},
-      "IsMSet": false,
-      "N": null,
-      "NS": [],
-      "NULL": false,
-      "S": "2022-10-18T16:03Z",
-      "SS": []
+      "S": "2022-10-18T16:03:00.0000000+00:00"
     },
     "roleIds": {
-      "B": null,
-      "BOOL": false,
-      "IsBOOLSet": false,
-      "BS": [],
       "L": [
         {
-          "B": null,
-          "BOOL": false,
-          "IsBOOLSet": false,
-          "BS": [],
-          "L": [],
-          "IsLSet": false,
-          "M": {},
-          "IsMSet": false,
-          "N": null,
-          "NS": [],
-          "NULL": false,
-          "S": "4bd6e5ff-3f77-4895-b861-000000000003",
-          "SS": []
+          "S": "4bd6e5ff-3f77-4895-b861-000000000003"
         },
         {
-          "B": null,
-          "BOOL": false,
-          "IsBOOLSet": false,
-          "BS": [],
-          "L": [],
-          "IsLSet": false,
-          "M": {},
-          "IsMSet": false,
-          "N": null,
-          "NS": [],
-          "NULL": false,
-          "S": "34f9d49a-706d-4bed-b9e8-000000000003",
-          "SS": []
+          "S": "34f9d49a-706d-4bed-b9e8-000000000003"
         }
-      ],
-      "IsLSet": true,
-      "M": {},
-      "IsMSet": false,
-      "N": null,
-      "NS": [],
-      "NULL": false,
-      "S": null,
-      "SS": []
+      ]
     }
   },
   {
     "userId": {
-      "B": null,
-      "BOOL": false,
-      "IsBOOLSet": false,
-      "BS": [],
-      "L": [],
-      "IsLSet": false,
-      "M": {},
-      "IsMSet": false,
-      "N": null,
-      "NS": [],
-      "NULL": false,
-      "S": "40822a39-1d07-4170-9486-000000000001",
-      "SS": []
+      "S": "40822a39-1d07-4170-9486-000000000001"
     },
     "roleIds": {
-      "B": null,
-      "BOOL": false,
-      "IsBOOLSet": false,
-      "BS": [],
       "L": [
         {
-          "B": null,
-          "BOOL": false,
-          "IsBOOLSet": false,
-          "BS": [],
-          "L": [],
-          "IsLSet": false,
-          "M": {},
-          "IsMSet": false,
-          "N": null,
-          "NS": [],
-          "NULL": false,
-          "S": "4bd6e5ff-3f77-4895-b861-000000000001",
-          "SS": []
+          "S": "4bd6e5ff-3f77-4895-b861-000000000001"
         },
         {
-          "B": null,
-          "BOOL": false,
-          "IsBOOLSet": false,
-          "BS": [],
-          "L": [],
-          "IsLSet": false,
-          "M": {},
-          "IsMSet": false,
-          "N": null,
-          "NS": [],
-          "NULL": false,
-          "S": "34f9d49a-706d-4bed-b9e8-000000000001",
-          "SS": []
+          "S": "34f9d49a-706d-4bed-b9e8-000000000001"
         },
         {
-          "B": null,
-          "BOOL": false,
-          "IsBOOLSet": false,
-          "BS": [],
-          "L": [],
-          "IsLSet": false,
-          "M": {},
-          "IsMSet": false,
-          "N": null,
-          "NS": [],
-          "NULL": false,
-          "S": "12d73fb1-5286-4376-b3b5-e03eb6a4ec13",
-          "SS": []
+          "S": "12d73fb1-5286-4376-b3b5-e03eb6a4ec13"
         },
         {
-          "B": null,
-          "BOOL": false,
-          "IsBOOLSet": false,
-          "BS": [],
-          "L": [],
-          "IsLSet": false,
-          "M": {},
-          "IsMSet": false,
-          "N": null,
-          "NS": [],
-          "NULL": false,
-          "S": "8f671114-c522-4a5b-9490-0165a1b8e56e",
-          "SS": []
+          "S": "8f671114-c522-4a5b-9490-0165a1b8e56e"
         }
-      ],
-      "IsLSet": true,
-      "M": {},
-      "IsMSet": false,
-      "N": null,
-      "NS": [],
-      "NULL": false,
-      "S": null,
-      "SS": []
+      ]
     },
     "timestamp": {
-      "B": null,
-      "BOOL": false,
-      "IsBOOLSet": false,
-      "BS": [],
-      "L": [],
-      "IsLSet": false,
-      "M": {},
-      "IsMSet": false,
-      "N": null,
-      "NS": [],
-      "NULL": false,
-      "S": "2022-10-18T16:01Z",
-      "SS": []
+      "S": "2022-10-18T16:01:00.0000000+00:00"
     }
   }
 ]

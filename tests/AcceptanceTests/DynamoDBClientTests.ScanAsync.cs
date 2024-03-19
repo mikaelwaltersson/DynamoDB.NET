@@ -15,7 +15,7 @@ public partial class DynamoDBClientTests
                 new Dictionary<string, AttributeValue>
                 {
                     ["userId"] = new AttributeValue { S = $"51b78930-5854-4e91-b4c2-{1 + i:D12}" },
-                    ["timestamp"] = new AttributeValue { S = $"2022-10-18T16:{1 + i:D2}:00Z" },
+                    ["timestamp"] = new AttributeValue { S = $"2022-10-18T16:{1 + i:D2}:00.0000000+00:00" },
                     ["roleIds"] = new AttributeValue 
                     {
                         L =

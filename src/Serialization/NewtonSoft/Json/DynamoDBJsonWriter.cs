@@ -239,7 +239,7 @@ public class DynamoDBJsonWriter : JsonWriter
     }
 
 
-    public override void WriteValue(DateTime value) => WriteValue(value.ToIso8601String());
+    public override void WriteValue(DateTime value) => WriteValue(value.ToString("O"));
 
     public override void WriteValue(byte[] value)
     {
@@ -253,12 +253,11 @@ public class DynamoDBJsonWriter : JsonWriter
         NextValue().B = new MemoryStream(value);
     }
 
-    public override void WriteValue(DateTimeOffset value) => WriteValue(value.ToIso8601String());
-
+    public override void WriteValue(DateTimeOffset value) => WriteValue(value.ToString("O"));
 
     public override void WriteValue(Guid value) => WriteValue(value.ToString("D"));
 
-    public override void WriteValue(TimeSpan value) => WriteValue(value.ToIso8601String());
+    public override void WriteValue(TimeSpan value) => WriteValue(value.ToString("c"));
 
     public override void WriteValue(Uri value)=> WriteValue(value?.OriginalString);
 

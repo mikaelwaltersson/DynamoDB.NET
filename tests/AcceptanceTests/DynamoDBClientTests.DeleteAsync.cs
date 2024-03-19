@@ -14,7 +14,7 @@ public partial class DynamoDBClientTests
             new Dictionary<string, AttributeValue>
             {
                 ["userId"] = new AttributeValue { S = "a684e596-2f85-4259-8108-55eff1e4acce" },
-                ["timestamp"] = new AttributeValue { S = "2022-10-18T16:42Z" },
+                ["timestamp"] = new AttributeValue { S = "2022-10-18T16:42:00.0000000+00:00" },
                 ["roleIds"] = new AttributeValue 
                 {
                     L =
@@ -27,7 +27,7 @@ public partial class DynamoDBClientTests
 
         // Act
         await dynamoDBClient.DeleteAsync<TestModels.UserPost>(
-            (new Guid("a684e596-2f85-4259-8108-55eff1e4acce"), new DateTime(2022, 10, 18, 16, 42, 0, DateTimeKind.Utc)));
+            (new Guid("a684e596-2f85-4259-8108-55eff1e4acce"), new DateTimeOffset(2022, 10, 18, 16, 42, 0, TimeSpan.Zero)));
 
         // Assert
         Assert.Empty(
@@ -36,7 +36,7 @@ public partial class DynamoDBClientTests
                 new Dictionary<string, AttributeValue> 
                 {
                     ["userId"] = new AttributeValue { S = "a684e596-2f85-4259-8108-55eff1e4acce" },
-                    ["timestamp"] = new AttributeValue { S = "2022-10-18T16:42Z" },    
+                    ["timestamp"] = new AttributeValue { S = "2022-10-18T16:42:00.0000000+00:00" },    
                 })).Item);
     }
 
@@ -49,7 +49,7 @@ public partial class DynamoDBClientTests
             new Dictionary<string, AttributeValue>
             {
                 ["userId"] = new AttributeValue { S = "a684e596-2f85-4259-8108-55eff1e4acce" },
-                ["timestamp"] = new AttributeValue { S = "2022-10-19T16:42Z" },
+                ["timestamp"] = new AttributeValue { S = "2022-10-19T16:42:00.0000000+00:00" },
                 ["roleIds"] = new AttributeValue 
                 {
                     L =
@@ -64,7 +64,7 @@ public partial class DynamoDBClientTests
             new TestModels.UserPost 
             { 
                 UserId = new Guid("a684e596-2f85-4259-8108-55eff1e4acce"),
-                Timestamp = new DateTime(2022, 10, 19, 16, 42, 0, DateTimeKind.Utc)
+                Timestamp = new DateTimeOffset(2022, 10, 19, 16, 42, 0, TimeSpan.Zero)
             };
 
         // Act
@@ -79,7 +79,7 @@ public partial class DynamoDBClientTests
                 new Dictionary<string, AttributeValue> 
                 {
                     ["userId"] = new AttributeValue { S = "a684e596-2f85-4259-8108-55eff1e4acce" },
-                    ["timestamp"] = new AttributeValue { S = "2022-10-19T16:42Z" },    
+                    ["timestamp"] = new AttributeValue { S = "2022-10-19T16:42:00.0000000+00:00" },    
                 })).Item);
     }
 
@@ -88,6 +88,6 @@ public partial class DynamoDBClientTests
     {
         // Act
         await dynamoDBClient.DeleteAsync<TestModels.UserPost>(
-            (new Guid("4c3af95c-1a5c-460f-ab3b-a2869f6ef3c6"), new DateTime(2022, 10, 18, 16, 42, 0, DateTimeKind.Utc)));
+            (new Guid("4c3af95c-1a5c-460f-ab3b-a2869f6ef3c6"), new DateTimeOffset(2022, 10, 18, 16, 42, 0, TimeSpan.Zero)));
     }       
 }

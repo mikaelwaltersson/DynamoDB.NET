@@ -134,7 +134,7 @@ public class DynamoDBClientExtensionsTests
         public Task<T> GetAsync<T>(
             PrimaryKey<T> key, 
             bool? consistentRead = false,
-            CancellationToken cancellationToken = default(CancellationToken)) where T : class =>
+            CancellationToken cancellationToken = default) where T : class =>
             Task.FromResult((T)Items[key]);
         
         public Task<T?> TryGetAsync<T>(
@@ -154,34 +154,34 @@ public class DynamoDBClientExtensionsTests
             Expression<Func<T, DynamoDBExpressions.UpdateAction>> update, 
             Expression<Func<T, bool>>? condition = null, 
             object? version = null,
-            CancellationToken cancellationToken = default(CancellationToken)) where T : class =>
+            CancellationToken cancellationToken = default) where T : class =>
             throw new NotImplementedException();
 
         public Task DeleteAsync<T>(
             PrimaryKey<T> key, 
             Expression<Func<T, bool>>? condition = null, 
             object? version = null,
-            CancellationToken cancellationToken = default(CancellationToken)) where T : class =>
+            CancellationToken cancellationToken = default) where T : class =>
             throw new NotImplementedException();
 
         public Task<IDynamoDBPartialResult<T>> ScanAsync<T>(
             Expression<Func<T, bool>>? filter = null, 
-            PrimaryKey<T> exclusiveStartKey = default(PrimaryKey<T>), 
+            PrimaryKey<T> exclusiveStartKey = default, 
             int? limit = null,
             bool? consistentRead = false,
-            (string, string) index = default((string, string)),
-            CancellationToken cancellationToken = default(CancellationToken)) where T : class =>
+            (string, string) index = default,
+            CancellationToken cancellationToken = default) where T : class =>
             QueryAsync(_ => true, exclusiveStartKey, limit);
 
         public Task<IDynamoDBPartialResult<T>> QueryAsync<T>(
             Expression<Func<T, bool>> keyCondition,
             Expression<Func<T, bool>>? filter = null, 
-            PrimaryKey<T> exclusiveStartKey = default(PrimaryKey<T>), 
+            PrimaryKey<T> exclusiveStartKey = default, 
             bool? scanIndexForward = null,
             int? limit = null,
             bool? consistentRead = false,
-            (string, string) index = default((string, string)),
-            CancellationToken cancellationToken = default(CancellationToken)) where T : class =>
+            (string, string) index = default,
+            CancellationToken cancellationToken = default) where T : class =>
             QueryAsync(keyCondition.Compile(), exclusiveStartKey, limit);
 
         Task<IDynamoDBPartialResult<T>> QueryAsync<T>(Func<T, bool> condition, PrimaryKey<T> exclusiveStartKey, int? limit) where T : class =>

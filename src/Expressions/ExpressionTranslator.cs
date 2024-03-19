@@ -485,7 +485,7 @@ public static class ExpressionTranslator
         protected override Expression VisitMethodCall(MethodCallExpression node) =>
             base.VisitMethodCall(ReplaceSetWithRemoveForEmptyValues(node));
     
-        private MethodCallExpression ReplaceSetWithRemoveForEmptyValues(MethodCallExpression node)
+        MethodCallExpression ReplaceSetWithRemoveForEmptyValues(MethodCallExpression node)
         {
             if (node.Method.DeclaringType == typeof(DynamoDBExpressions) &&
                 node.Method.Name == nameof(DynamoDBExpressions.Set))

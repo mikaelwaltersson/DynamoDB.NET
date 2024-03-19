@@ -9,7 +9,7 @@ public class UserPost
     public required Guid UserId { get; set; }
 
     [SortKey]
-    public required DateTime Timestamp { get; set; }
+    public required DateTimeOffset Timestamp { get; set; }
 
-    public List<Guid> RoleIds { get; set; } = new List<Guid>();
+    public List<Guid> RoleIds { get; set; } = [];
 }

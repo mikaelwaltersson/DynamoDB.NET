@@ -14,7 +14,7 @@ public partial class DynamoDBClientTests
             new Dictionary<string, AttributeValue>
             {
                 ["userId"] = new AttributeValue { S = "550e83bf-5117-4b85-a145-bcca4742cb6c" },
-                ["timestamp"] = new AttributeValue { S = "2022-10-18T16:42Z" },
+                ["timestamp"] = new AttributeValue { S = "2022-10-18T16:42:00.0000000+00:00" },
                 ["roleIds"] = new AttributeValue 
                 {
                     L =
@@ -28,7 +28,7 @@ public partial class DynamoDBClientTests
         // Act
         var item = 
             await dynamoDBClient.UpdateAsync<TestModels.UserPost>(
-                (new Guid("550e83bf-5117-4b85-a145-bcca4742cb6c"), new DateTime(2022, 10, 18, 16, 42, 0, DateTimeKind.Utc)),
+                (new Guid("550e83bf-5117-4b85-a145-bcca4742cb6c"), new DateTimeOffset(2022, 10, 18, 16, 42, 0, TimeSpan.Zero)),
                 userPost =>
                     Set(userPost.RoleIds, 
                         ListAppend(
@@ -53,7 +53,7 @@ public partial class DynamoDBClientTests
             new Dictionary<string, AttributeValue>
             {
                 ["userId"] = new AttributeValue { S = "550e83bf-5117-4b85-a145-bcca4742cb6c" },
-                ["timestamp"] = new AttributeValue { S = "2022-10-19T16:42Z" },
+                ["timestamp"] = new AttributeValue { S = "2022-10-19T16:42:00.0000000+00:00" },
                 ["roleIds"] = new AttributeValue 
                 {
                     L =
@@ -68,7 +68,7 @@ public partial class DynamoDBClientTests
             new TestModels.UserPost 
             { 
                 UserId = new Guid("550e83bf-5117-4b85-a145-bcca4742cb6c"),
-                Timestamp = new DateTime(2022, 10, 19, 16, 42, 0, DateTimeKind.Utc)
+                Timestamp = new DateTimeOffset(2022, 10, 19, 16, 42, 0, TimeSpan.Zero)
             };
 
         // Act

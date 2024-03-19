@@ -31,7 +31,7 @@ public partial class DynamoDBClientTests : IAsyncLifetime
                         ServiceURL = "http://localhost:8000"
                     }));
 
-        services.AddSingleton<IDynamoDBSerializer, Serialization.Newtonsoft.Json.JsonDynamoDbSerializer>();
+        services.AddSingleton<IDynamoDBSerializer, Serialization.Newtonsoft.Json.JsonDynamoDBSerializer>();
         services.AddSingleton<IDynamoDBClient, DynamoDBClient>();
         services.Configure<DynamoDBClientOptions>(
             options => 

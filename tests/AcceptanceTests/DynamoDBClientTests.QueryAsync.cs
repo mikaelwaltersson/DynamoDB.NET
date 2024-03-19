@@ -11,11 +11,11 @@ public partial class DynamoDBClientTests
         for (var i = 0; i < 4; i++)
         {
             await dynamoDB.PutItemAsync(
-                tableName, 
+                tableName,
                 new Dictionary<string, AttributeValue>
                 {
                     ["userId"] = new AttributeValue { S = $"d98e04ab-7920-4296-a0de-{1 + (i / 2):D12}" },
-                    ["timestamp"] = new AttributeValue { S = $"2022-10-18T16:{1 + i:D2}:00Z" },
+                    ["timestamp"] = new AttributeValue { S = $"2022-10-18T16:{1 + i:D2}:00.0000000+00:00" },
                     ["roleIds"] = new AttributeValue 
                     {
                         L =

@@ -13,7 +13,7 @@ public partial class DynamoDBClientTests
             new Dictionary<string, AttributeValue>
             {
                 ["userId"] = new AttributeValue { S = "4793561c-e693-4e58-b31f-99bd9df840ab" },
-                ["timestamp"] = new AttributeValue { S = "2022-10-18T16:42Z" },
+                ["timestamp"] = new AttributeValue { S = "2022-10-18T16:42:00.0000000+00:00" },
                 ["roleIds"] = new AttributeValue 
                 {
                     L =
@@ -27,7 +27,7 @@ public partial class DynamoDBClientTests
         // Act
         var item = 
             await dynamoDBClient.TryGetAsync<TestModels.UserPost>(
-                (new Guid("4793561c-e693-4e58-b31f-99bd9df840ab"), new DateTime(2022, 10, 18, 16, 42, 0, DateTimeKind.Utc)));
+                (new Guid("4793561c-e693-4e58-b31f-99bd9df840ab"), new DateTimeOffset(2022, 10, 18, 16, 42, 0, TimeSpan.Zero)));
 
         // Assert
         Assert.NotNull(item);
@@ -40,7 +40,7 @@ public partial class DynamoDBClientTests
         // Act
         var item = 
             await dynamoDBClient.TryGetAsync<TestModels.UserPost>(
-                (new Guid("00000000-0000-0000-0000-000000000001"), new DateTime(2022, 10, 18, 16, 42, 0, DateTimeKind.Utc)));
+                (new Guid("00000000-0000-0000-0000-000000000001"), new DateTimeOffset(2022, 10, 18, 16, 42, 0, TimeSpan.Zero)));
 
         // Assert
         Assert.Null(item);

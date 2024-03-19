@@ -12,9 +12,9 @@ public interface IDynamoDBSerializer
     T DeserializeDynamoDBValue<T>(AttributeValue value) =>
         (T)DeserializeDynamoDBValue(value, typeof(T));
 
-    AttributeValue SerializeDynamoDBValue(object value, Type objectType, SerializeDynamoDBValueFlags flags = default(SerializeDynamoDBValueFlags));
+    AttributeValue SerializeDynamoDBValue(object value, Type objectType, SerializeDynamoDBValueFlags flags = default);
 
-    AttributeValue SerializeDynamoDBValue<T>(T value, SerializeDynamoDBValueFlags flags = default(SerializeDynamoDBValueFlags)) =>
+    AttributeValue SerializeDynamoDBValue<T>(T value, SerializeDynamoDBValueFlags flags = default) =>
         SerializeDynamoDBValue(value, typeof(T), flags);
 
     Model.TableDescription GetTableDescription(Type type);

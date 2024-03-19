@@ -16,7 +16,7 @@ public partial class DynamoDBClientTests
                 new Dictionary<string, AttributeValue>
                 {
                     ["userId"] = new AttributeValue { S = $"40822a39-1d07-4170-9486-{1 + i:D12}" },
-                    ["timestamp"] = new AttributeValue { S = $"2022-10-18T16:{1 + i:D2}Z" },
+                    ["timestamp"] = new AttributeValue { S = $"2022-10-18T16:{1 + i:D2}:00.0000000+00:00" },
                     ["roleIds"] = new AttributeValue 
                     {
                         L =
@@ -35,7 +35,7 @@ public partial class DynamoDBClientTests
             new TestModels.UserPost
             {
                 UserId = new Guid("40822a39-1d07-4170-9486-000000000004"),
-                Timestamp = new DateTime(2022, 10, 18, 16, 4, 0, DateTimeKind.Utc),
+                Timestamp = new DateTimeOffset(2022, 10, 18, 16, 4, 0, TimeSpan.Zero),
                 RoleIds =
                 { 
                     new Guid("4bd6e5ff-3f77-4895-b861-000000000004"),
@@ -56,10 +56,10 @@ public partial class DynamoDBClientTests
                         })));
 
         transaction.Delete<TestModels.UserPost>(
-            (new Guid("40822a39-1d07-4170-9486-000000000002"), new DateTime(2022, 10, 18, 16, 2, 0, DateTimeKind.Utc)));
+            (new Guid("40822a39-1d07-4170-9486-000000000002"), new DateTimeOffset(2022, 10, 18, 16, 2, 0, TimeSpan.Zero)));
 
         transaction.ConditionCheck<TestModels.UserPost>(
-            (new Guid("40822a39-1d07-4170-9486-000000000003"), new DateTime(2022, 10, 18, 16, 3, 0, DateTimeKind.Utc)),
+            (new Guid("40822a39-1d07-4170-9486-000000000003"), new DateTimeOffset(2022, 10, 18, 16, 3, 0, TimeSpan.Zero)),
             userPost => Size(userPost.RoleIds) > 1);
 
         await transaction.CommitAsync();

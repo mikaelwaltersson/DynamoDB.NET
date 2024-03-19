@@ -59,13 +59,11 @@ public class JsonContractResolver : DefaultContractResolver, ITypeContractResolv
         [
             new MemoryStreamJsonConverter(),
             new ByteArrayJsonConverter(),
-            new Iso8601JsonConverter(),
             new StringEnumConverter(new CamelCaseNamingStrategy()),
 
             new DynamoDBSetJsonConverter(typeof(string)),
             new DynamoDBSetJsonConverter(typeof(char)),
             new DynamoDBSetJsonConverter(typeof(Uri), itemParser: s => new Uri(s)),
-            new DynamoDBSetJsonConverter(new Iso8601JsonConverter()),
             new DynamoDBSetJsonConverter(new ByteArrayJsonConverter(), comparer: ByteArrayComparer.Default),
             
             new DynamoDBSetJsonConverter(typeof(byte)),

@@ -14,7 +14,7 @@ public partial class DynamoDBClientTests
             new Dictionary<string, AttributeValue>
             {
                 ["userId"] = new AttributeValue { S = "f4ebd04f-0bd7-43b9-90a8-d6de295927f3" },
-                ["timestamp"] = new AttributeValue { S = "2022-10-18T16:42Z" },
+                ["timestamp"] = new AttributeValue { S = "2022-10-18T16:42:00.0000000+00:00" },
                 ["roleIds"] = new AttributeValue 
                 {
                     L =
@@ -28,7 +28,7 @@ public partial class DynamoDBClientTests
         // Act
         var item = 
             await dynamoDBClient.GetAsync<TestModels.UserPost>(
-                (new Guid("f4ebd04f-0bd7-43b9-90a8-d6de295927f3"), new DateTime(2022, 10, 18, 16, 42, 0, DateTimeKind.Utc)));
+                (new Guid("f4ebd04f-0bd7-43b9-90a8-d6de295927f3"), new DateTimeOffset(2022, 10, 18, 16, 42, 0, TimeSpan.Zero)));
 
         // Assert
         Assert.NotNull(item);
@@ -41,6 +41,6 @@ public partial class DynamoDBClientTests
         // Act & Assert
         await Assert.ThrowsAsync<ItemNotFoundException<TestModels.UserPost>>(() => 
             dynamoDBClient.GetAsync<TestModels.UserPost>(
-                (new Guid("bbb8dfe9-650f-4cd1-abc0-354de2b71a6d"), new DateTime(2022, 10, 18, 16, 42, 0, DateTimeKind.Utc))));
+                (new Guid("bbb8dfe9-650f-4cd1-abc0-354de2b71a6d"), new DateTimeOffset(2022, 10, 18, 16, 42, 0, TimeSpan.Zero))));
     }
 }
