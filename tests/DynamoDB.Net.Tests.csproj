@@ -10,6 +10,7 @@
 
   <ItemGroup>
     <ProjectReference Include="../src/DynamoDB.Net.csproj" />
+    <ProjectReference Include="../serializers/Newtonsoft.Json/DynamoDB.Net.Serialization.Newtonsoft.Json.csproj" />
   </ItemGroup>
 
   <ItemGroup>

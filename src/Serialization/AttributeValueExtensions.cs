@@ -2,7 +2,7 @@ using Amazon.DynamoDBv2.Model;
 
 namespace DynamoDB.Net.Serialization;
 
-static class AttributeValueExtensions
+public static class AttributeValueExtensions
 {
     public static bool IsEmpty(this AttributeValue value) =>
         value.B == null &&

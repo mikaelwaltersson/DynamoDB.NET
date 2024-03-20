@@ -7,13 +7,6 @@ namespace DynamoDB.Net.Tests.UnitTests;
 
 public class DynamoDBClientExtensionsTests
 {
-    static DynamoDBClientExtensionsTests()
-    {
-#pragma warning disable CA1806
-        new JsonContractResolver(); // TODO: remove once TypeContractResolver.Default is populated by default
-#pragma warning restore CA1806
-    }
-
     Client client = new Client();
 
     [Fact]
