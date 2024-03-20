@@ -3,7 +3,6 @@ using Amazon.DynamoDBv2;
 using DynamoDB.Net.Model;
 using DynamoDB.Net.Serialization;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace DynamoDB.Net.Tests.AcceptanceTests;
@@ -44,10 +43,10 @@ public partial class DynamoDBClientTests : IAsyncLifetime
 
         dynamoDB = serviceProvider.GetRequiredService<IAmazonDynamoDB>();
         
-        var createTableRequest = serviceProvider
-            .GetRequiredService<IDynamoDBSerializer>()
-            .GetTableDescription(typeof(TestModels.UserPost))
-            .GetCreateTableRequest(serviceProvider.GetRequiredService<IOptions<DynamoDBClientOptions>>().Value);
+        var createTableRequest = 
+            TableDescription.Get(typeof(TestModels.UserPost)).GetCreateTableRequest(
+                serviceProvider.GetRequiredService<IDynamoDBSerializer>(),
+                serviceProvider.GetRequiredService<IOptions<DynamoDBClientOptions>>().Value);
 
         await dynamoDB.CreateTableAsync(createTableRequest);
 

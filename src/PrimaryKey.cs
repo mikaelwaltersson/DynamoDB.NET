@@ -1,14 +1,17 @@
 using System;
 using System.Text;
+using Amazon.DynamoDBv2.Model;
 using DynamoDB.Net.Model;
 using DynamoDB.Net.Serialization;
 
-using AttributeValue = Amazon.DynamoDBv2.Model.AttributeValue;
+using TableDescription = DynamoDB.Net.Model.TableDescription;
 
 namespace DynamoDB.Net;
 
 public static class PrimaryKey
 {
+    public const char DefaultKeysSeparator = ',';
+
     public static IDynamoDBSerializer DefaultSerializer { get; set; }
 
     public static Type GetUnderlyingType(Type type)
@@ -98,7 +101,7 @@ public readonly struct PrimaryKey<T> : IPrimaryKey, IEquatable<PrimaryKey<T>> wh
 
     public override string ToString() => ToString(null);
 
-    public string ToString(IDynamoDBSerializer serializer = null, char separator = ',')
+    public string ToString(IDynamoDBSerializer serializer = null, char keysSeparator = PrimaryKey.DefaultKeysSeparator)
     {
         var s = new StringBuilder();
 
@@ -109,38 +112,37 @@ public readonly struct PrimaryKey<T> : IPrimaryKey, IEquatable<PrimaryKey<T>> wh
         s.Append(
             EscapeKeyValue(
                 serializer.SerializeDynamoDBValue(this.PartitionKey, TableDescription.KeyTypes<T>.PartitionKey),
-                separator));
+                keysSeparator));
 
         if (HasSortKey)
         {
-            s.Append(separator);
+            s.Append(keysSeparator);
             s.Append(
                 EscapeKeyValue(
                     serializer.SerializeDynamoDBValue(this.SortKey, TableDescription.KeyTypes<T>.SortKey),
-                    separator));
+                    keysSeparator));
         }
 
         return s.ToString();
     }
 
-    public static PrimaryKey<T> Parse(string s, IDynamoDBSerializer keyValueSerializer = null, char keyValueSeparator = ',')
+    public static PrimaryKey<T> Parse(string s, IDynamoDBSerializer serializer = null, char keysSeparator = PrimaryKey.DefaultKeysSeparator)
     {
-        var key = s.Split(keyValueSeparator);
+        var key = s.Split(keysSeparator);
         if (key.Length != (HasSortKey ? 2 : 1))
             throw new FormatException(nameof(s));
 
-        if (keyValueSerializer == null)
-            keyValueSerializer = PrimaryKey.DefaultSerializer;
+        serializer ??= PrimaryKey.DefaultSerializer;
 
-        ArgumentNullException.ThrowIfNull(nameof(keyValueSerializer));
+        ArgumentNullException.ThrowIfNull(nameof(serializer));
 
         return
             new PrimaryKey<T>(
-                keyValueSerializer.DeserializeDynamoDBValue(
+                serializer.DeserializeDynamoDBValue(
                     new AttributeValue { S = UnescapeKeyValue(key[0]) }, 
                     TableDescription.KeyTypes<T>.PartitionKey),
                 HasSortKey 
-                ? keyValueSerializer.DeserializeDynamoDBValue(
+                ? serializer.DeserializeDynamoDBValue(
                     new AttributeValue { S = UnescapeKeyValue(key[1]) }, 
                     TableDescription.KeyTypes<T>.SortKey)
                 : null);

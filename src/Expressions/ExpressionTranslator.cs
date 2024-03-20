@@ -33,7 +33,7 @@ public static class ExpressionTranslator
                 throw new ArgumentOutOfRangeException(nameof(index), $"'{sortKey}' is not a valid instance member of '{typeof(T).FullName}'");
         }
 
-        return context.TableDescription.GetIndexName(partitionKey, sortKey);
+        return TableDescription.Get(typeof(T)).GetIndexName(partitionKey, sortKey);
     }
 
     public static string GetIndexName<T>(this Expression<Func<T, bool>> expression, ExpressionTranslationContext<T> context) where T : class
@@ -47,7 +47,7 @@ public static class ExpressionTranslator
 
         return
             partitionKey != null
-            ? context.TableDescription.GetIndexName(partitionKey, sortKey)
+            ? TableDescription.Get(typeof(T)).GetIndexName(partitionKey, sortKey)
             : null;
     }
 
@@ -348,7 +348,7 @@ public static class ExpressionTranslator
         {
             case ExpressionType.Convert:
             case ExpressionType.ConvertChecked:
-                return ((UnaryExpression)expression).Operand.Type.GetTypeInfo().IsEnum;
+                return ((UnaryExpression)expression).Operand.Type.IsEnum;
 
             default:
                 return false;
@@ -1128,14 +1128,13 @@ public static class ExpressionTranslator
 
     abstract class ExpressionInvoker
     {
-        static ConcurrentDictionary<Type, ExpressionInvoker> _invokers = new ConcurrentDictionary<Type, ExpressionInvoker>();
-
-        static ExpressionInvoker CreateInstance(Type type) =>
-                (ExpressionInvoker)System.Activator.CreateInstance(typeof(ExpressionInvoker<>).MakeGenericType(type));
-    
         public abstract object Invoke(Expression expression);
+        
+        static readonly ConcurrentDictionary<Type, ExpressionInvoker> cachedInvokers = [];
 
-        public static ExpressionInvoker Get(Type type) => _invokers.GetOrAdd(type, CreateInstance);
+        public static ExpressionInvoker Get(Type type) => 
+            cachedInvokers.GetOrAdd(type, static type => (ExpressionInvoker)
+                System.Activator.CreateInstance(typeof(ExpressionInvoker<>).MakeGenericType(type)));
     }
 
     class ExpressionInvoker<T> : ExpressionInvoker

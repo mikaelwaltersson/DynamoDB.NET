@@ -20,13 +20,11 @@ public class ExpressionTranslationContext<T> where T : class
 
         Serializer = serializer;
         SerializeFlags = serializeFlags;
-        TableDescription = serializer.GetTableDescription(typeof(T));
     }
 
 
     public IDynamoDBSerializer Serializer { get; }
     public SerializeDynamoDBValueFlags SerializeFlags { get; }
-    public Model.TableDescription TableDescription { get; }
 
     public Dictionary<string, string> AttributeNames => attributeNames;
     public Dictionary<string, AttributeValue> AttributeValues => attributeValues;

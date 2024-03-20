@@ -1,8 +1,8 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-
 using Amazon.DynamoDBv2;
 using Amazon.DynamoDBv2.Model;
 using DynamoDB.Net.Serialization;
@@ -14,15 +14,18 @@ public class TableDescription
     const int DefaultReadCapacityUnits = 5;
     const int DefaultWriteCapacityUnits = 2;
 
-    TableDescription(string tableName, ITypeContract contract)
+
+    TableDescription(Type type)
     {
-        TableName = tableName;
-        PartitionKeyProperty = ResolveIndexKeyProperty<PartitionKeyAttribute>(contract, required: true);
-        SortKeyProperty = ResolveIndexKeyProperty<SortKeyAttribute>(contract);
-        VersionProperty = ResolveVersionProperty(contract);
-        LocalSecondaryIndexSortKeyProperties = ResolveSecondaryIndexKeyProperties<SortKeyAttribute>(contract, IndexType.LocalSecondaryIndex);
-        GlobalSecondaryIndexPartitionKeyProperties = ResolveSecondaryIndexKeyProperties<PartitionKeyAttribute>(contract, IndexType.GlobalSecondaryIndex);
-        GlobalSecondaryIndexSortKeyProperties = ResolveSecondaryIndexKeyProperties<SortKeyAttribute>(contract, IndexType.GlobalSecondaryIndex);
+        ArgumentNullException.ThrowIfNull(type);
+
+        TableName = GetTableName(type);
+        PartitionKeyProperty = GetIndexKeyProperty<PartitionKeyAttribute>(type, required: true);
+        SortKeyProperty = GetIndexKeyProperty<SortKeyAttribute>(type);
+        VersionProperty = GetVersionProperty(type);
+        LocalSecondaryIndexSortKeyProperties = GetSecondaryIndexKeyProperties<SortKeyAttribute>(type, IndexType.LocalSecondaryIndex);
+        GlobalSecondaryIndexPartitionKeyProperties = GetSecondaryIndexKeyProperties<PartitionKeyAttribute>(type, IndexType.GlobalSecondaryIndex);
+        GlobalSecondaryIndexSortKeyProperties = GetSecondaryIndexKeyProperties<SortKeyAttribute>(type, IndexType.GlobalSecondaryIndex);
 
         FallBackToPrimaryPartitionKey(
             GlobalSecondaryIndexPartitionKeyProperties,
@@ -32,29 +35,22 @@ public class TableDescription
 
     public string TableName { get; }
 
-    public ITypeContractProperty PartitionKeyProperty { get; }
+    public MemberInfo PartitionKeyProperty { get; }
 
-    public ITypeContractProperty SortKeyProperty { get; }
+    public MemberInfo SortKeyProperty { get; }
 
-    public ITypeContractProperty VersionProperty { get; }
+    public MemberInfo VersionProperty { get; }
  
-    public ITypeContractProperty[] LocalSecondaryIndexSortKeyProperties { get; }
+    public MemberInfo[] LocalSecondaryIndexSortKeyProperties { get; }
  
-    public ITypeContractProperty[] GlobalSecondaryIndexPartitionKeyProperties { get; }
+    public MemberInfo[] GlobalSecondaryIndexPartitionKeyProperties { get; }
  
-    public ITypeContractProperty[] GlobalSecondaryIndexSortKeyProperties { get; }
+    public MemberInfo[] GlobalSecondaryIndexSortKeyProperties { get; }
+    
+    static readonly ConcurrentDictionary<Type, TableDescription> cachedTableDescriptions = [];
 
-
-    public static TableDescription Get(Type type, ITypeContractResolver contractResolver)
-    {
-        ArgumentNullException.ThrowIfNull(type);
-        ArgumentNullException.ThrowIfNull(contractResolver);
-
-        var tableName = GetTableName(type);
-        var contract = contractResolver.ResolveContract(type);
-
-        return new TableDescription(tableName, contract);
-    }
+    public static TableDescription Get(Type type) =>
+        cachedTableDescriptions.GetOrAdd(type, static type => new(type));
 
     public static string GetTableName<T>(DynamoDBClientOptions options = null) => GetTableName(typeof(T), options);
 
@@ -62,13 +58,13 @@ public class TableDescription
     {
         ArgumentNullException.ThrowIfNull(type);
 
-        var tableAttribute = type.GetTypeInfo().GetCustomAttribute<TableAttribute>(inherit: true);
-        if (tableAttribute == null)
+        var tableAttribute = 
+            type.GetCustomAttribute<TableAttribute>(inherit: true) ?? 
             throw new InvalidOperationException($"Type {type.Name} is missing a Table attribute");
 
-        var name = tableAttribute.Name ?? type.Name.ToHyphenCasing().NaivelyPluralized();
+        var tableName = tableAttribute.Name ?? type.Name.ToHyphenCasing().NaivelyPluralized();
         
-        return ApplyTableNamePrefixAndMapping(options, name);
+        return ApplyTableNamePrefixAndMapping(options, tableName);
     }
 
     public string GetIndexName(MemberInfo partitionKey, MemberInfo sortKey)
@@ -139,73 +135,23 @@ public class TableDescription
     }
 
     public CreateTableRequest GetCreateTableRequest(
+        IDynamoDBSerializer serializer,
         DynamoDBClientOptions options = null,
         ProvisionedThroughput provisionedThroughput = null,
         Projection projection = null,
         StreamSpecification streamSpecification = null,
         Func<Type, ScalarAttributeType> mapToKeyAttributeType = null) =>
-        TableRequests.CreateTable(this, options, provisionedThroughput, projection, streamSpecification, mapToKeyAttributeType);
+        TableRequests.CreateTable(this, serializer, options, provisionedThroughput, projection, streamSpecification, mapToKeyAttributeType);
 
     public UpdateTableRequest GetUpdateTableProvisionedThroughputRequest(
         DynamoDBClientOptions options = null, 
         int? readCapacityUnits = null, 
         int? writeCapacityUnits = null) =>
-        TableRequests.UpdateTableProvisionedThroughput(this, options, readCapacityUnits, writeCapacityUnits);
-
-
-    // Move to PrimaryKey
-    public static class KeyTypes<T>
-    {
-        static KeyTypes()
-        {
-            var tableDescription = Get(typeof(T), TypeContractResolver.Default);
-
-            PartitionKey = tableDescription.PartitionKeyProperty.PropertyType;
-            SortKey = tableDescription.SortKeyProperty?.PropertyType;
-        }
-
-        public static readonly Type PartitionKey;
-        public static readonly Type SortKey;
-    }     
-
-    // Remove this class
-    public static class PropertyNames<T>
-    {
-        static PropertyNames()
-        {
-            var tableDescription = Get(typeof(T), TypeContractResolver.Default);
-
-            PartitionKey = tableDescription.PartitionKeyProperty.PropertyName;
-            SortKey = tableDescription.SortKeyProperty?.PropertyName;
-            Version = tableDescription.VersionProperty?.PropertyName;
-        }
-
-        public static readonly string PartitionKey;
-        public static readonly string SortKey;
-        public static readonly string Version;
-    }  
-
-    // Move to PrimaryKey
-    public static class PropertyAccessors<T>
-    {
-        static PropertyAccessors()
-        {
-            var tableDescription = Get(typeof(T), TypeContractResolver.Default);
-
-            GetPartitionKey = tableDescription.PartitionKeyProperty.CompileGetter<T>();
-            GetSortKey = tableDescription.SortKeyProperty?.CompileGetter<T>();
-            GetVersion = tableDescription.VersionProperty?.CompileGetter<T>();
-        }
-
-        public static readonly Func<T, object> GetPartitionKey;
-        public static readonly Func<T, object> GetSortKey;
-        public static readonly Func<T, object> GetVersion;
-    }     
-    
+        TableRequests.UpdateTableProvisionedThroughput(this, options, readCapacityUnits, writeCapacityUnits);    
 
     string GetLocalSecondaryIndexName(int ordinal) =>
         GetPropertyIndexAttributeName<SortKeyAttribute>(LocalSecondaryIndexSortKeyProperties[ordinal], IndexType.LocalSecondaryIndex, ordinal) ??
-        $"lsi-{ordinal}-{LocalSecondaryIndexSortKeyProperties[ordinal].PropertyName.ToHyphenCasing()}";
+        $"lsi-{ordinal}-{LocalSecondaryIndexSortKeyProperties[ordinal].Name.ToHyphenCasing()}";
 
     string GetGlobalSecondaryIndexName(int ordinal)
     {
@@ -213,64 +159,61 @@ public class TableDescription
         if (name != null)
             return name;
 
-        name = $"gsi-{ordinal}-{GlobalSecondaryIndexPartitionKeyProperties[ordinal].PropertyName.ToHyphenCasing()}";
+        name = $"gsi-{ordinal}-{GlobalSecondaryIndexPartitionKeyProperties[ordinal].Name.ToHyphenCasing()}";
 
         if (GlobalSecondaryIndexSortKeyProperties[ordinal] != null)
-            name += $"-{GlobalSecondaryIndexSortKeyProperties[ordinal].PropertyName.ToHyphenCasing()}";
+            name += $"-{GlobalSecondaryIndexSortKeyProperties[ordinal].Name.ToHyphenCasing()}";
 
         return name;
     }
 
-    static IEnumerable<int> GetIndexOrdinals(IndexType type)
-    {
-        switch (type) 
+    static IEnumerable<int> GetIndexOrdinals(IndexType type) => 
+        type switch
         {
-            case IndexType.LocalSecondaryIndex: 
-                return Enumerable.Range(0, Base.IndexKeyAttributeBase.MaxNumberOfLocalSecondaryIndexes);
+            IndexType.LocalSecondaryIndex => 
+                Enumerable.Range(0, Base.IndexKeyAttributeBase.MaxNumberOfLocalSecondaryIndexes),
             
-            case IndexType.GlobalSecondaryIndex: 
-                return Enumerable.Range(0, Base.IndexKeyAttributeBase.MaxNumberOfGlobalSecondaryIndexes);
+            IndexType.GlobalSecondaryIndex => 
+                Enumerable.Range(0, Base.IndexKeyAttributeBase.MaxNumberOfGlobalSecondaryIndexes),
+            
+            _ => [],
+        };
 
-            default:
-                return Enumerable.Empty<int>();
-        }
-    }
+    static string GetPropertyIndexAttributeName<TAttribute>(MemberInfo property, IndexType indexType, int ordinal) where TAttribute : Base.IndexKeyAttributeBase =>
+        property.GetCustomAttributes<TAttribute>().FirstOrDefault(a => a.Type == indexType && a.Ordinal == ordinal)?.Name;
 
-    static string GetPropertyIndexAttributeName<TAttribute>(ITypeContractProperty property, IndexType type, int ordinal) where TAttribute : Base.IndexKeyAttributeBase =>
-        property.GetAttributes<TAttribute>().FirstOrDefault(a => a.Type == type && a.Ordinal == ordinal)?.Name;
-
-    static ITypeContractProperty ResolveIndexKeyProperty<TAttribute>(ITypeContract contract, IndexType type = IndexType.PrimaryKey, int ordinal = 0, bool required = false) where TAttribute : Base.IndexKeyAttributeBase
+    static MemberInfo GetIndexKeyProperty<TAttribute>(Type type, IndexType indexType = IndexType.PrimaryKey, int ordinal = 0, bool required = false) where TAttribute : Base.IndexKeyAttributeBase
     {
         var properties =
-            contract.Properties.
-                Where(p => p.GetAttributes<TAttribute>().Any(a => a.Type == type && a.Ordinal == ordinal)).
+            type.GetSerializablePropertiesAndFields().
+                Where(p => p.GetCustomAttributes<TAttribute>().Any(a => a.Type == indexType && a.Ordinal == ordinal)).
                 ToArray();
 
         var attributeDescription = typeof(TAttribute).Name;
-        if (type != IndexType.PrimaryKey)
-            attributeDescription += $"({type} = {ordinal})";
+        if (indexType != IndexType.PrimaryKey)
+            attributeDescription += $"({indexType} = {ordinal})";
 
-        return ValidSingleResolvedPropertyResult(contract, properties, attributeDescription, required);
+        return ValidSingleResolvedPropertyResult(type, properties, attributeDescription, required);
     }
 
-    static ITypeContractProperty ResolveVersionProperty(ITypeContract contract) =>
+    static MemberInfo GetVersionProperty(Type type) =>
         ValidSingleResolvedPropertyResult(
-            contract, 
-            contract.Properties.Where(p => p.HasAttribute<VersionAttribute>()).ToArray(), 
+            type,
+            type.GetSerializablePropertiesAndFields().Where(property => property.HasCustomAttribute<VersionAttribute>()).ToArray(), 
             typeof(Version).Name);
 
-    static ITypeContractProperty[] ResolveSecondaryIndexKeyProperties<TAttribute>(ITypeContract contract, IndexType type) where TAttribute : Base.IndexKeyAttributeBase =>
-        GetIndexOrdinals(type).Select(ordinal => ResolveIndexKeyProperty<TAttribute>(contract, type, ordinal)).ToArray();
+    static MemberInfo[] GetSecondaryIndexKeyProperties<TAttribute>(Type type, IndexType indexType) where TAttribute : Base.IndexKeyAttributeBase =>
+        GetIndexOrdinals(indexType).Select(ordinal => GetIndexKeyProperty<TAttribute>(type, indexType, ordinal)).ToArray();
 
-    static ITypeContractProperty ValidSingleResolvedPropertyResult(ITypeContract contract, ITypeContractProperty[] properties, string attributeDescription, bool required = false)
+    static MemberInfo ValidSingleResolvedPropertyResult(Type type, MemberInfo[] properties, string attributeDescription, bool required = false)
     {
         if (properties.Length > 1)
-            throw new InvalidOperationException($"Expected at most one property with a {attributeDescription} attribute for {contract.UnderlyingType.FullName}, got {properties.Length}");
+            throw new InvalidOperationException($"Expected at most one property with a {attributeDescription} attribute for {type.FullName}, got {properties.Length}");
 
         if (properties.Length == 0)
         {
             if (required)
-                throw new InvalidOperationException($"Expected a property with a {attributeDescription} attribute for {contract.UnderlyingType.FullName}");
+                throw new InvalidOperationException($"Expected a property with a {attributeDescription} attribute for {type.FullName}");
 
             return null;
         }
@@ -278,7 +221,7 @@ public class TableDescription
         return properties[0];
     }
 
-    static void FallBackToPrimaryPartitionKey(ITypeContractProperty[] indexPartitionKeyProperties, ITypeContractProperty[] indexSortKeyProperties, ITypeContractProperty primaryPartitionKey)
+    static void FallBackToPrimaryPartitionKey(MemberInfo[] indexPartitionKeyProperties, MemberInfo[] indexSortKeyProperties, MemberInfo primaryPartitionKey)
     {
         for (var i = 0; i < indexPartitionKeyProperties.Length; i++)
         {
@@ -287,30 +230,41 @@ public class TableDescription
         }
     }
 
-    static string ApplyTableNamePrefixAndMapping(DynamoDBClientOptions options, string name)
-    {
-        string mappedName;
-        return
-            options == null 
-            ? name
-            : options.TableNameMappings.TryGetValue(name, out mappedName)
+    static string ApplyTableNamePrefixAndMapping(DynamoDBClientOptions options, string tableName) => 
+        options == null
+            ? tableName
+            : options.TableNameMappings.TryGetValue(tableName, out string mappedName)
                 ? mappedName
-                : options.TableNamePrefix + name;
-    }
+                : options.TableNamePrefix + tableName;
+
+
+    public static class KeyTypes<T>
+    {
+        public static readonly Type PartitionKey = Get(typeof(T)).PartitionKeyProperty.GetPropertyType();
+        public static readonly Type SortKey = Get(typeof(T)).SortKeyProperty?.GetPropertyType();
+    }     
+
+    public static class PropertyAccessors<T>
+    {
+        public static readonly Func<T, object> GetPartitionKey = Get(typeof(T)).PartitionKeyProperty.CompilePropertyGetter<T, object>();
+        public static readonly Func<T, object> GetSortKey = Get(typeof(T)).SortKeyProperty?.CompilePropertyGetter<T, object>();
+        public static readonly Func<T, object> GetVersion = Get(typeof(T)).VersionProperty?.CompilePropertyGetter<T, object>();
+    }     
 
     static class TableRequests
     {
         public static CreateTableRequest CreateTable(
             TableDescription table,
+            IDynamoDBSerializer serializer,
             DynamoDBClientOptions options = null,
             ProvisionedThroughput provisionedThroughput = null, 
             Projection projection = null, 
             StreamSpecification streamSpecification = null,
             Func<Type, ScalarAttributeType> mapToKeyAttributeType = null) =>
-            new CreateTableRequest
+            new()
             {
                 TableName = ApplyTableNamePrefixAndMapping(options, table.TableName),
-                KeySchema = GetKeySchema(table.PartitionKeyProperty, table.SortKeyProperty),
+                KeySchema = GetKeySchema(serializer, table.PartitionKeyProperty, table.SortKeyProperty),
                 ProvisionedThroughput = provisionedThroughput ?? GetDefaultProvisionedThrougput(),
                 StreamSpecification = streamSpecification ?? GetDefaultStreamSpecification(),
                 SSESpecification = new SSESpecification { Enabled = true },
@@ -321,14 +275,14 @@ public class TableDescription
                         Concat(table.GlobalSecondaryIndexPartitionKeyProperties).
                         Concat(table.GlobalSecondaryIndexSortKeyProperties)
                     where property != null
-                    group property by property.PropertyName into propertiesPerName
+                    group property by serializer.GetSerializedPropertyName(property) into propertiesPerName
                     let property = propertiesPerName.First()
                     select new AttributeDefinition
                     {
-                        AttributeName = property.PropertyName,
+                        AttributeName = propertiesPerName.Key,
                         AttributeType = 
-                            mapToKeyAttributeType?.Invoke(property.PropertyType) ?? 
-                            GetScalarAttributeType(property.PropertyType)
+                            mapToKeyAttributeType?.Invoke(property.GetPropertyType()) ?? 
+                            MapToScalarAttributeType(property.GetPropertyType())
                     }).
                     ToList(),
 
@@ -339,7 +293,7 @@ public class TableDescription
                     select new LocalSecondaryIndex
                     {
                         IndexName = table.GetLocalSecondaryIndexName(ordinal),
-                        KeySchema = GetKeySchema(table.PartitionKeyProperty, sortKey),
+                        KeySchema = GetKeySchema(serializer, table.PartitionKeyProperty, sortKey),
                         Projection = projection ?? GetDefaultProjection()
                     }).
                     ToList(),
@@ -352,7 +306,7 @@ public class TableDescription
                     select new GlobalSecondaryIndex
                     {
                         IndexName = table.GetGlobalSecondaryIndexName(ordinal),
-                        KeySchema = GetKeySchema(partitionKey, sortKey),
+                        KeySchema = GetKeySchema(serializer, partitionKey, sortKey),
                         Projection = projection ?? GetDefaultProjection(),
                         ProvisionedThroughput = provisionedThroughput ?? GetDefaultProvisionedThrougput()
                     }).
@@ -364,7 +318,7 @@ public class TableDescription
             DynamoDBClientOptions options = null,
             int? readCapacityUnits = null,
             int? writeCapacityUnits = null) =>
-            new UpdateTableRequest
+            new()
             {
                 TableName = ApplyTableNamePrefixAndMapping(options, table.TableName),
                 ProvisionedThroughput = new ProvisionedThroughput
@@ -393,14 +347,14 @@ public class TableDescription
             };
 
 
-        static List<KeySchemaElement> GetKeySchema(ITypeContractProperty partitionKeyProperty, ITypeContractProperty sortKeyProperty)
+        static List<KeySchemaElement> GetKeySchema(IDynamoDBSerializer serializer, MemberInfo partitionKeyProperty, MemberInfo sortKeyProperty)
         {
             var elements =
                 new List<KeySchemaElement>
                 {
-                    new KeySchemaElement
+                    new() 
                     {
-                        AttributeName = partitionKeyProperty.PropertyName,
+                        AttributeName = serializer.GetSerializedPropertyName(partitionKeyProperty),
                         KeyType = KeyType.HASH
                     }
                 };
@@ -408,9 +362,9 @@ public class TableDescription
             if (sortKeyProperty != null)
             {
                 elements.Add(
-                    new KeySchemaElement
+                    new()
                     {
-                        AttributeName = sortKeyProperty.PropertyName,
+                        AttributeName = serializer.GetSerializedPropertyName(sortKeyProperty),
                         KeyType = KeyType.RANGE
                     });
             }
@@ -419,50 +373,50 @@ public class TableDescription
         }
 
         static ProvisionedThroughput GetDefaultProvisionedThrougput() =>
-            new ProvisionedThroughput
+            new()
             {
                 ReadCapacityUnits = DefaultReadCapacityUnits,
                 WriteCapacityUnits = DefaultWriteCapacityUnits
             };
 
         static Projection GetDefaultProjection() =>
-            new Projection
+            new()
             {
                 ProjectionType = ProjectionType.ALL
             };
 
         static StreamSpecification GetDefaultStreamSpecification() =>
-            new StreamSpecification
+            new()
             {
                 StreamEnabled = true,
                 StreamViewType = StreamViewType.NEW_AND_OLD_IMAGES
             };
 
-        static ScalarAttributeType GetScalarAttributeType(Type type)
+    
+        static ScalarAttributeType MapToScalarAttributeType(Type type)
         {
             type = Nullable.GetUnderlyingType(type) ?? type;
 
-            switch (Type.GetTypeCode(type))
+            return Type.GetTypeCode(type) switch
             {
-                case TypeCode.SByte:
-                case TypeCode.Byte:
-                case TypeCode.Int16:
-                case TypeCode.UInt16:
-                case TypeCode.Int32:
-                case TypeCode.UInt32:
-                case TypeCode.Int64:
-                case TypeCode.UInt64:
-                case TypeCode.Single:
-                case TypeCode.Double:
-                case TypeCode.Decimal:
-                    return ScalarAttributeType.N;
+                TypeCode.SByte or 
+                TypeCode.Byte or 
+                TypeCode.Int16 or 
+                TypeCode.UInt16 or 
+                TypeCode.Int32 or 
+                TypeCode.UInt32 or 
+                TypeCode.Int64 or 
+                TypeCode.UInt64 or 
+                TypeCode.Single or 
+                TypeCode.Double or 
+                TypeCode.Decimal =>
+                    ScalarAttributeType.N,
 
-                default:
-                    return
-                        type == typeof(byte[]) 
-                        ? ScalarAttributeType.B 
-                        : ScalarAttributeType.S;
-            }
+                _ => 
+                    type == typeof(byte[])
+                        ? ScalarAttributeType.B
+                        : ScalarAttributeType.S
+            };
         }
     }
 }

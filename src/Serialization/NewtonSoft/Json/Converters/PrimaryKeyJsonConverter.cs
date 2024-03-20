@@ -2,6 +2,8 @@ using System;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Serialization;
 
+using TableDescription = DynamoDB.Net.Model.TableDescription;
+
 namespace DynamoDB.Net.Serialization.Newtonsoft.Json.Converters;
 
 public class PrimaryKeyJsonConverter<T> : JsonConverter where T : class
@@ -12,14 +14,15 @@ public class PrimaryKeyJsonConverter<T> : JsonConverter where T : class
     {
         ArgumentNullException.ThrowIfNull(contractResolver);
 
-        var tableDescription = contractResolver.GetTableDescription(typeof(T));
+        var tableDescription = TableDescription.Get(typeof(T));
 
         this.properties =
-            new[]
-            {
-                JsonContractResolver.UnwrapJsonProperty(tableDescription.PartitionKeyProperty).Clone(required: Required.Always),
-                JsonContractResolver.UnwrapJsonProperty(tableDescription.SortKeyProperty)?.Clone(required: Required.Always)
-            };
+            [
+                contractResolver.GetJsonProperty(tableDescription.PartitionKeyProperty).Clone(required: Required.Always),
+                tableDescription.SortKeyProperty != null
+                    ? contractResolver.GetJsonProperty(tableDescription.SortKeyProperty).Clone(required: Required.Always)
+                    : null
+            ];
     }
 
 

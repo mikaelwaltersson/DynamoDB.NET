@@ -22,16 +22,17 @@ public class KnownTypesSerializationBinder : ISerializationBinder
 
         foreach (var type in assembly.GetExportedTypes())
         {
-            var typeInfo = type.GetTypeInfo();
-            var typeNamespace = type.Namespace ?? string.Empty;
-
-            if (!typeInfo.IsClass || typeInfo.IsAbstract || typeInfo.IsGenericType)
+            if (!type.IsClass || type.IsAbstract || type.IsGenericType)
                 continue;
 
-            if (namespacePrefix != null &&
-                !typeNamespace.Equals(namespacePrefix) &&
-                !typeNamespace.StartsWith(namespacePrefix + Type.Delimiter))
-                continue;
+            if (namespacePrefix != null)
+            {
+                var typeNamespace = type.Namespace ?? string.Empty;
+                
+                if (!typeNamespace.Equals(namespacePrefix) &&
+                    !typeNamespace.StartsWith(namespacePrefix + Type.Delimiter))
+                    continue;
+            }
 
             var name =
                 keepRelativeNamespace

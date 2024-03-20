@@ -17,9 +17,7 @@ public interface IDynamoDBSerializer
     AttributeValue SerializeDynamoDBValue<T>(T value, SerializeDynamoDBValueFlags flags = default) =>
         SerializeDynamoDBValue(value, typeof(T), flags);
 
-    Model.TableDescription GetTableDescription(Type type);
-
-    string GetSerializedPropertyName(MemberInfo memberInfo);
+    string GetSerializedPropertyName(MemberInfo property);
 
     bool TryCreateDynamoDBSet(Type elementType, IEnumerable values, out object dynamoDBSet);
 }

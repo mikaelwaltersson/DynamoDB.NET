@@ -5,7 +5,7 @@ namespace DynamoDB.Net.Model;
 
 public class ByteArrayComparer : IComparer<byte[]>, IComparer, IEqualityComparer<byte[]>
 {
-    public static readonly ByteArrayComparer Default = new ByteArrayComparer();
+    public static readonly ByteArrayComparer Default = new();
 
     public int Compare(byte[] x, byte[] y)
     {
@@ -24,10 +24,8 @@ public class ByteArrayComparer : IComparer<byte[]>, IComparer, IEqualityComparer
         return x.Length.CompareTo(y.Length);
     }
 
-    public bool Equals(byte[] x, byte[] y)
-    {
-        return x?.Length == y?.Length && Compare(x, y) == 0;
-    }
+    public bool Equals(byte[] x, byte[] y) =>
+        x?.Length == y?.Length && Compare(x, y) == 0;
 
     public int GetHashCode(byte[] obj)
     {

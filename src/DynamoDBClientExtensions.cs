@@ -109,27 +109,30 @@ public static class DynamoDBClientExtensions
 
 
 
-    static ConcurrentDictionary<Type, IItemOperations> itemOperations = new ConcurrentDictionary<Type, IItemOperations>();
+    static readonly ConcurrentDictionary<Type, IItemOperations> itemOperations = [];
 
     static IItemOperations ItemOperationsForKeyType(object key) =>
-        itemOperations.GetOrAdd(key?.GetType(), type =>
-        {
-            var underlyingType = PrimaryKey.GetUnderlyingType(type);
+        itemOperations.GetOrAdd(
+            key?.GetType(), 
+            static type =>
+            {
+                var underlyingType = 
+                    PrimaryKey.GetUnderlyingType(type) ?? 
+                    throw new ArgumentOutOfRangeException(nameof(key));
 
-            if (underlyingType == null)
-                throw new ArgumentOutOfRangeException(nameof(key));
-
-            return (IItemOperations)Activator.CreateInstance(typeof(ItemOperations<>).MakeGenericType(underlyingType));
-        });
+                return (IItemOperations)Activator.CreateInstance(typeof(ItemOperations<>).MakeGenericType(underlyingType));
+            });
 
     static IItemOperations ItemOperationsForEntityType(Type entityType) =>
-        itemOperations.GetOrAdd(entityType, type =>
-        {
-            if (type == null)
-                throw new ArgumentOutOfRangeException(nameof(entityType));
+        itemOperations.GetOrAdd(
+            entityType, 
+            type =>
+            {
+                if (type == null)
+                    throw new ArgumentOutOfRangeException(nameof(entityType));
 
-            return (IItemOperations)Activator.CreateInstance(typeof(ItemOperations<>).MakeGenericType(type));
-        });
+                return (IItemOperations)Activator.CreateInstance(typeof(ItemOperations<>).MakeGenericType(type));
+            });
 
 
     interface IItemOperations

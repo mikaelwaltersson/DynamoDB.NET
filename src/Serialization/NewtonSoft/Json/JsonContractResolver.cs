@@ -1,10 +1,7 @@
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Linq.Expressions;
-using System.Reflection;
 using Amazon.DynamoDBv2.Model;
 using DynamoDB.Net.Model;
 using DynamoDB.Net.Serialization.Newtonsoft.Json.Converters;
@@ -13,17 +10,10 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
 using Newtonsoft.Json.Serialization;
 
-using TableDescription = DynamoDB.Net.Model.TableDescription;
-
 namespace DynamoDB.Net.Serialization.Newtonsoft.Json;
 
-public class JsonContractResolver : DefaultContractResolver, ITypeContractResolver
+public class JsonContractResolver : DefaultContractResolver
 {
-    static JsonContractResolver()
-    {
-        TypeContractResolver.Default = DefaultDynamoDB;
-    }
-
     static readonly Dictionary<string, Predicate<AttributeValue>> attributeValueShouldSerializeLookup =
         new(StringComparer.Ordinal)
         {
@@ -39,12 +29,9 @@ public class JsonContractResolver : DefaultContractResolver, ITypeContractResolv
             ["SS"] = target => target.SS != null && target.SS.Count > 0
         };
 
-    readonly ConcurrentDictionary<Type, TableDescription> tableDescriptions = new();
-
     public static readonly JsonContractResolver Default = new();
     
     public static readonly JsonContractResolver DefaultDynamoDB = new(SerializationTarget.DynamoDB);
-
 
 
     public JsonContractResolver(SerializationTarget serializationTarget = SerializationTarget.Json)
@@ -85,11 +72,6 @@ public class JsonContractResolver : DefaultContractResolver, ITypeContractResolv
         [
             new SerializeDefaultValueForNonFlagsEnumsPropertyDecorator()
         ];
-
-
-    public TableDescription GetTableDescription(Type type) =>
-        tableDescriptions.GetOrAdd(type, key => TableDescription.Get(key, this));
-
 
     protected override IList<JsonProperty> CreateProperties(Type type, MemberSerialization memberSerialization)
     {
@@ -135,7 +117,7 @@ public class JsonContractResolver : DefaultContractResolver, ITypeContractResolv
         return Converters.FirstOrDefault(converter => converter.CanConvert(objectType));
     }
 
-    void SetUpDynamoDBSetProperty(JsonProperty property)
+    static void SetUpDynamoDBSetProperty(JsonProperty property)
     {
         var parameter = Expression.Parameter(typeof(object), "obj");
         var member =
@@ -165,16 +147,14 @@ public class JsonContractResolver : DefaultContractResolver, ITypeContractResolv
         }
     }
 
-
-
-    int GetPropertyClassHiearchyDepth(Type type, JsonProperty property)
+    static int GetPropertyClassHiearchyDepth(Type type, JsonProperty property)
     {
         var depth = 0;
 
-        for (var t = type; t != null; t = t.GetTypeInfo().BaseType)
+        for (var t = type; t != null; t = t.BaseType)
             depth++;
 
-        for (var t = type; t != null && t != property.DeclaringType; t = t.GetTypeInfo().BaseType)
+        for (var t = type; t != null && t != property.DeclaringType; t = t.BaseType)
             depth--;
 
         return depth;
@@ -188,43 +168,4 @@ public class JsonContractResolver : DefaultContractResolver, ITypeContractResolv
     }
     
     static Predicate<object> DownCastPredicate<T>(Predicate<T> predicate) => target => predicate((T)target);
-
-    ITypeContract ITypeContractResolver.ResolveContract(Type type)
-    {
-        var contract = ResolveContract(type);
-
-        if (!(contract is JsonObjectContract))
-            throw new InvalidOperationException($"Expected JsonObjectContract for {type.FullName}, got: {contract.GetType()?.Name}");
-
-        return new TypeContract((JsonObjectContract)contract);
-    }
-
-    [return: NotNullIfNotNull(nameof(property))]
-    internal static JsonProperty UnwrapJsonProperty(ITypeContractProperty property) => 
-        property != null ? ((TypeContractProperty)property).JsonProperty : null;
-
-    class TypeContract(JsonObjectContract contract) : ITypeContract
-    {
-        public Type UnderlyingType { get; } = contract.UnderlyingType;
-
-        public IEnumerable<ITypeContractProperty> Properties { get; } = 
-            contract.Properties.Select(property => new TypeContractProperty(property)).ToArray().AsEnumerable();
-    }
-
-    class TypeContractProperty(JsonProperty property) : ITypeContractProperty
-    {
-        public string PropertyName => property.PropertyName;
-
-        public Type PropertyType => property.PropertyType;
-
-        public string UnderlyingName => property.UnderlyingName;
-
-        public Type DeclaringType => property.DeclaringType;
-
-        public JsonProperty JsonProperty => property;
-
-        public IEnumerable<T> GetAttributes<T>() where T : Attribute => property.GetAttributes<T>();
-
-        public bool HasAttribute<T>() where T : Attribute => property.HasAttribute<T>();
-    }
 }

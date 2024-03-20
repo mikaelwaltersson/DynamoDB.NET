@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using DynamoDB.Net.Model;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Serialization;
 
@@ -49,7 +50,7 @@ static class JsonPropertyExtensions
 
     public static bool IsPrimitivePropertyType(this JsonProperty property) =>
         primitiveTypes.Contains(property.PropertyType) ||
-        property.PropertyType.GetTypeInfo().IsEnum;
+        property.PropertyType.IsEnum;
 
     public static void WriteProperty(this JsonProperty property, JsonWriter writer, object value, JsonSerializer serializer, bool skipWriteName = false)
     {
@@ -96,5 +97,42 @@ static class JsonPropertyExtensions
         clonedProperty.Required = required ?? property.Required;
 
         return clonedProperty;
+    }
+
+    public static JsonProperty GetJsonProperty(this IContractResolver contractResolver, MemberInfo property)
+    {
+        property = ResolvePrimaryKeyProperty(property);
+
+        var jsonContract = contractResolver.ResolveContract(property.DeclaringType);
+
+        if (jsonContract is not JsonObjectContract jsonObjectContract)
+            throw new InvalidOperationException($"Expected JsonObjectContract for '{property.DeclaringType?.FullName}', got: '{jsonContract.GetType().FullName}'");
+    
+        var jsonProperty = 
+            jsonObjectContract.Properties.SingleOrDefault(jsonProperty => jsonProperty.UnderlyingName == property.Name);
+
+        if (jsonProperty is null)
+            throw new InvalidOperationException($"No such property found in JsonObjectContract for '{property.DeclaringType?.FullName}': '{property.Name}'");
+    
+        return jsonProperty;
+    }
+
+    static MemberInfo ResolvePrimaryKeyProperty(MemberInfo property)
+    {
+        var primaryKeyUnderlyingType = PrimaryKey.GetUnderlyingType(property.DeclaringType);
+        if (primaryKeyUnderlyingType != null)
+        {
+            var tableDescription = TableDescription.Get(primaryKeyUnderlyingType);
+            switch (property.Name)
+            {
+                case nameof(PrimaryKey<object>.PartitionKey):
+                    return tableDescription.PartitionKeyProperty;
+
+                case nameof(PrimaryKey<object>.SortKey):
+                    return tableDescription.SortKeyProperty;
+            }
+        }
+
+        return property;
     }
 }
