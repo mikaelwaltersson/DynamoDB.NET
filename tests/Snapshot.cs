@@ -1,3 +1,4 @@
+using System.Text.Json.Nodes;
 using Amazon.DynamoDBv2.Model;
 using DynamoDB.Net.Serialization;
 
@@ -5,7 +6,7 @@ namespace DynamoDB.Net.Tests;
 
 public static class Snapshot
 {
-    public static void Match(object value) =>
+    public static void Match(object? value) =>
         Snapshooter.Xunit.Snapshot.Match(value.ToSnapshotFriendlyObject());
 
      static object? ToSnapshotFriendlyObject<T>(this T value)
@@ -48,6 +49,9 @@ public static class Snapshot
             if (dynamoDBValue.IsMSet)
                 return  new { M = dynamoDBValue.M.ToSnapshotFriendlyObject() };
         }
+
+        if (value is JsonNode jsonNode)
+            return jsonNode.ToJsonString(new() { WriteIndented = true });
 
         return value;
      }

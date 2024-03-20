@@ -1,0 +1,60 @@
+
+using Amazon.DynamoDBv2;
+using DynamoDB.Net.Model;
+using DynamoDB.Net.Serialization;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
+
+namespace DynamoDB.Net.Tests.FunctionalTests;
+
+public partial class DynamoDBClientTests : IAsyncLifetime
+{
+    IServiceProvider serviceProvider = null!;
+    IAmazonDynamoDB dynamoDB = null!;
+    IDynamoDBClient dynamoDBClient = null!;
+    string tableName = null!;
+
+    async Task IAsyncLifetime.InitializeAsync()
+    {
+        var services = new ServiceCollection();
+            
+        services.AddDefaultAWSOptions(
+            new() 
+            { 
+                DefaultClientConfig = { ServiceURL = "http://localhost:8000" }
+            });
+
+        services.AddDynamoDBClient(
+            options => 
+            {
+                options.TableNamePrefix = $"acceptance-tests-{Guid.NewGuid()}-";
+            });
+
+        services.Configure<DynamoDBSerializerOptions>(
+            options => 
+            {
+                options.AttributeNameTransform = NameTransform.CamelCase;
+            });
+            
+        serviceProvider = services.BuildServiceProvider();
+
+        dynamoDB = serviceProvider.GetRequiredService<IAmazonDynamoDB>();
+        
+        var createTableRequest = 
+            TableDescription.Get(typeof(TestModels.UserPost)).GetCreateTableRequest(
+                serviceProvider.GetRequiredService<IDynamoDBSerializer>(),
+                serviceProvider.GetRequiredService<IOptions<DynamoDBClientOptions>>().Value);
+
+        await dynamoDB.CreateTableAsync(createTableRequest);
+
+        dynamoDBClient = serviceProvider.GetRequiredService<IDynamoDBClient>();
+        tableName = createTableRequest.TableName;
+    }
+
+    async Task IAsyncLifetime.DisposeAsync()
+    {
+        var dynamoDb = serviceProvider.GetRequiredService<IAmazonDynamoDB>();
+        
+        await dynamoDb.DeleteTableAsync(tableName);
+    }
+}

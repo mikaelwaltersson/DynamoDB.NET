@@ -1,14 +1,33 @@
-using System;
+using System.Collections.Concurrent;
+using System.Linq.Expressions;
 
 namespace DynamoDB.Net.Serialization;
 
-public static class Activator
+static class Activator
 {
-    // TODO: Make faster with compiled lambdas
+    static readonly ConcurrentDictionary<Type, bool> cachedIsConstructable = new();
+    static readonly ConcurrentDictionary<Type, Func<object>> compiledCreateInstance = new();
 
-    public static object CreateInstance(this Type type) => System.Activator.CreateInstance(type);
-    
-    public static object CreateInstance(this Type type, Type[] argTypes, object[] argValues) => System.Activator.CreateInstance(type, argValues);
+    public static bool IsConstructable(Type type) =>
+        cachedIsConstructable.GetOrAdd(
+            type, 
+            static type =>
+                (type.GetConstructors().Any(constructor => constructor.GetParameters() is []) || type.IsValueType) &&
+                type is { 
+                    IsGenericMethodParameter: false, 
+                    IsGenericTypeParameter: false,
+                    IsGenericTypeDefinition: false, 
+                    IsAbstract: false 
+                });
 
-    public static object CreateInstance<T>(this Type type, T arg) => type.CreateInstance([typeof(T)], [arg]);
+    public static T CreateInstance<T>() =>
+        (T)CreateInstance(typeof(T));
+        
+    public static object CreateInstance(Type type) => 
+        compiledCreateInstance.GetOrAdd(
+            type, 
+            static type => 
+                Expression
+                    .Lambda<Func<object>>(Expression.Convert(Expression.New(type), typeof(object)))
+                    .Compile())();
 }

@@ -1,52 +1,53 @@
-using System;
-using System.Collections.Generic;
 using System.Globalization;
-using System.Reflection;
+using System.Numerics;
 using Amazon.DynamoDBv2.Model;
 using DynamoDB.Net.Expressions;
 using DynamoDB.Net.Serialization;
-
-using TableDescription = DynamoDB.Net.Model.TableDescription;
 
 namespace DynamoDB.Net;
 
 public class VersionChecker : IDynamoDBItemEventHandler
 {
+    public static readonly object Skip = new();
+
     public T OnItemDeserialized<T>(T item) where T : class => item;
 
-    public Dictionary<string, AttributeValue> OnItemSerialized<T>(Dictionary<string, AttributeValue> item, ExpressionTranslationContext<T> translationContext) where T : class
+    public Dictionary<string, AttributeValue> OnItemSerialized<T>(Dictionary<string, AttributeValue> item, ExpressionTranslationContext translationContext) where T : class
     {
         ArgumentNullException.ThrowIfNull(item);
         ArgumentNullException.ThrowIfNull(translationContext);
 
-        var versionProperty = TableDescription.Get(typeof(T)).VersionProperty;
-        if (versionProperty != null)
+        var versionProperty = TableDescription.Properties<T>.Version;
+        var versionPropertyType = TableDescription.PropertyTypes<T>.Version;
+        
+        if ((versionProperty, versionPropertyType) is (not null, not null))
         {
-            var propertyName = translationContext.Serializer.GetSerializedPropertyName(versionProperty);
+            var propertyName = translationContext.Serializer.GetPropertyAttributeInfo(versionProperty.Value).AttributeName;
 
-            var serializedVersion = item.GetValueOrDefault(propertyName);
-            if (serializedVersion == null || serializedVersion.NULL || serializedVersion.IsEmpty())
-                serializedVersion = GetDefaultSerializedVersionValue(versionProperty, translationContext.Serializer);
+            if (!item.TryGetValue(propertyName, out var serializedVersion) || serializedVersion.IsEmptyOrNull())
+                serializedVersion = GetInitialVersion(versionPropertyType, translationContext.Serializer);
 
-            item[propertyName] = GetNextVersion(serializedVersion, versionProperty, translationContext.Serializer);
+            item[propertyName] = GetNextVersion(serializedVersion, versionPropertyType, translationContext.Serializer);
         }
 
         return item;
     }
 
-    public string OnItemUpdateTranslated<T>(string expression, object version, ExpressionTranslationContext<T> translationContext) where T : class
+    public string OnItemUpdateTranslated<T>(string expression, object? version, ExpressionTranslationContext translationContext) where T : class
     {
         ArgumentNullException.ThrowIfNull(translationContext);
 
-        var versionProperty = TableDescription.Get(typeof(T)).VersionProperty;
-        if (versionProperty != null && !ReferenceEquals(version, DynamoDBExpressions.SkipVersionCheckAndUpdate))
+        var versionProperty = TableDescription.Properties<T>.Version;
+        var versionPropertyType = TableDescription.PropertyTypes<T>.Version;
+        
+        if ((versionProperty, versionPropertyType) is (not null, not null) && !ReferenceEquals(version, Skip))
         {
             var serializedVersion = translationContext.Serializer.SerializeDynamoDBValue(version);
-            var isIncrementableVersion = GetDefaultSerializedVersionValue(versionProperty, translationContext.Serializer).N != null;
+            var isIncrementableVersion = GetInitialVersion(versionPropertyType, translationContext.Serializer).N != null;
 
-            var propertyName = translationContext.Serializer.GetSerializedPropertyName(versionProperty);
+            var propertyName = translationContext.Serializer.GetPropertyAttributeInfo(versionProperty.Value).AttributeName;
             var propertyAlias = translationContext.GetOrAddAttributeName(propertyName);
-            if (serializedVersion.IsEmpty() && isIncrementableVersion)
+            if (serializedVersion.IsEmptyOrNull() && isIncrementableVersion)
             {
                 var zeroAlias = translationContext.GetOrAddAttributeValue(new AttributeValue { N = "0" });
                 var oneAlias = translationContext.GetOrAddAttributeValue(new AttributeValue { N = "1" });
@@ -54,7 +55,7 @@ public class VersionChecker : IDynamoDBItemEventHandler
             }
             else
             {
-                var valueAlias = translationContext.GetOrAddAttributeValue(GetNextVersion(serializedVersion, versionProperty, translationContext.Serializer));
+                var valueAlias = translationContext.GetOrAddAttributeValue(GetNextVersion(serializedVersion, versionPropertyType, translationContext.Serializer));
                 expression = ExpressionTranslator.AppendUpdate(expression, "SET", $"{propertyAlias} = {valueAlias}");
             }
         }
@@ -62,28 +63,30 @@ public class VersionChecker : IDynamoDBItemEventHandler
         return expression;
     }
     
-    public string OnItemConditionTranslated<T>(string expression, object version, ExpressionTranslationContext<T> translationContext) where T : class
+    public string? OnItemConditionTranslated<T>(string? expression, object? version, ExpressionTranslationContext translationContext) where T : class
     {
         ArgumentNullException.ThrowIfNull(translationContext);
 
-        var versionProperty = TableDescription.Get(typeof(T)).VersionProperty;
-        if (versionProperty != null && !ReferenceEquals(version, DynamoDBExpressions.SkipVersionCheckAndUpdate))
+        var versionProperty = TableDescription.Properties<T>.Version;
+        var versionPropertyType = TableDescription.PropertyTypes<T>.Version;
+        
+        if ((versionProperty, versionPropertyType) is (not null, not null) && !ReferenceEquals(version, Skip))
         {
             var serializedVersion = translationContext.Serializer.SerializeDynamoDBValue(version);
-            var isEmptyInitialVersion = IsEmptyVersionValue(version, versionProperty);
-
-            if (!serializedVersion.IsEmpty())
+            if (!serializedVersion.IsEmptyOrNull())
             {
-                var propertyName = translationContext.Serializer.GetSerializedPropertyName(versionProperty);
-                var propertyAlias = translationContext.GetOrAddAttributeName(propertyName);
-                var valueAlias = translationContext.GetOrAddAttributeValue(serializedVersion);
+                var propertyAlias = 
+                    translationContext.GetOrAddAttributeName(
+                        translationContext.Serializer
+                            .GetPropertyAttributeInfo(versionProperty.Value)
+                            .AttributeName);
 
                 expression =
                     ExpressionTranslator.AppendCondition(
                         expression,
-                        isEmptyInitialVersion
+                        AttributeValueComparer.Default.Equals(serializedVersion, GetInitialVersion(versionPropertyType, translationContext.Serializer))
                             ? $"attribute_not_exists({propertyAlias})"
-                            : $"{propertyAlias} = {valueAlias}",
+                            : $"{propertyAlias} = {translationContext.GetOrAddAttributeValue(serializedVersion)}",
                         "AND");
             }
         }
@@ -91,44 +94,37 @@ public class VersionChecker : IDynamoDBItemEventHandler
         return expression;
     }
 
-    static AttributeValue GetNextVersion(AttributeValue serializedVersion, MemberInfo versionProperty, IDynamoDBSerializer serializer) 
+    static AttributeValue GetNextVersion(AttributeValue serializedVersion, Type versionPropertyType, IDynamoDBSerializer serializer) 
     {
         var number = serializedVersion.N;
         if (number != null)
         {
-            var invariantCulture = CultureInfo.InvariantCulture;
-            long integer;
-            number = long.TryParse(number, NumberStyles.Any, invariantCulture, out integer)
-                ? (integer + 1).ToString(invariantCulture)
-                : (double.Parse(number, NumberStyles.Any, invariantCulture) + 1.0).ToString(invariantCulture);
-            return new AttributeValue { N = number };
+            var formatProvider = CultureInfo.InvariantCulture;
+            
+            number = long.TryParse(number, formatProvider, out var longValue)
+                ? (longValue + 1).ToString(formatProvider)
+                : decimal.TryParse(number, formatProvider, out var decimalValue)
+                    ? (decimalValue + 1).ToString(formatProvider)
+                    : (BigInteger.Parse(number, formatProvider) + 1).ToString(formatProvider);
+            
+            return new() { N = number };
         }
 
-        var type = GetUnderlyingVersionType(versionProperty.GetPropertyType());
-        object autogeneratedVersion;
+        var type = versionPropertyType.UnwrapNullableType();
+        object autoGeneratedVersion;
 
         if (type == typeof(Guid))
-            autogeneratedVersion = Guid.NewGuid();
+            autoGeneratedVersion = Guid.NewGuid();
         else if (type == typeof(DateTime))
-            autogeneratedVersion = DateTime.UtcNow;
+            autoGeneratedVersion = DateTime.UtcNow;
         else if (type == typeof(DateTimeOffset))
-            autogeneratedVersion = DateTimeOffset.UtcNow;
+            autoGeneratedVersion = DateTimeOffset.UtcNow;
         else
-            throw new InvalidOperationException(
-                $"Can not automatically get next version for property {versionProperty.DeclaringType.FullName}.{versionProperty.Name}");
+            throw new InvalidOperationException($"Can not automatically get next version for type '{versionPropertyType}'");
 
-        return serializer.SerializeDynamoDBValue(autogeneratedVersion);
+        return serializer.SerializeDynamoDBValue(autoGeneratedVersion);
     }
 
-
-
-    static Type GetUnderlyingVersionType(Type type) =>
-        Nullable.GetUnderlyingType(type) ?? type;
-    
-    static AttributeValue GetDefaultSerializedVersionValue(MemberInfo versionProperty, IDynamoDBSerializer serializer) => 
-        serializer.SerializeDynamoDBValue(GetUnderlyingVersionType(versionProperty.GetPropertyType()).CreateInstance());
-
-    static bool IsEmptyVersionValue(object version, MemberInfo versionProperty) =>
-        Equals(version, GetUnderlyingVersionType(versionProperty.GetPropertyType()).CreateInstance());
-
+    static AttributeValue GetInitialVersion(Type versionPropertyType, IDynamoDBSerializer serializer) => 
+        serializer.SerializeDynamoDBValue(Serialization.Activator.CreateInstance(versionPropertyType.UnwrapNullableType()), versionPropertyType);
 }

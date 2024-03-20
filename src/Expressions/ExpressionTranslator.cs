@@ -1,89 +1,67 @@
-using System;
 using System.Collections;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Linq;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using DynamoDB.Net.Model;
 using DynamoDB.Net.Serialization;
+using DynamoDB.Net.Serialization.Converters;
 
 namespace DynamoDB.Net.Expressions;
 
 public static class ExpressionTranslator
 {
-    public static string GetIndexName<T>(this (string, string) index, ExpressionTranslationContext<T> context) where T : class
+    public static string? GetIndexName<T>(this (string?, string?) indexProperties) where T : class
     {
-        ArgumentNullException.ThrowIfNull(context);
-
-        var (partitionKeyName, sortKeyName) = index;
+        var (partitionKeyName, sortKeyName) = indexProperties;
         if (partitionKeyName == null)
             return null;
 
-        var partitionKey = typeof(T).GetMember(partitionKeyName, BindingFlags.Instance | BindingFlags.Public).FirstOrDefault();
-        if (partitionKey == null)
-            throw new ArgumentOutOfRangeException(nameof(index), $"'{partitionKeyName}' is not a valid instance member of '{typeof(T).FullName}'");
+        var partitionKey =
+            typeof(T).GetMember(partitionKeyName, BindingFlags.Instance | BindingFlags.Public).FirstOrDefault() ??
+            throw new ArgumentOutOfRangeException(nameof(indexProperties), $"'{partitionKeyName}' is not a valid instance member of '{typeof(T).FullName}'");
 
-        var sortKey = (MemberInfo)null;
-        if (sortKeyName != null) 
+        var sortKey = (MemberInfo?)null;
+        if (sortKeyName != null)
         {
-            sortKey = typeof(T).GetMember(sortKeyName, BindingFlags.Instance | BindingFlags.Public).FirstOrDefault();
-            if (sortKey == null)
-                throw new ArgumentOutOfRangeException(nameof(index), $"'{sortKey}' is not a valid instance member of '{typeof(T).FullName}'");
+            sortKey =
+                typeof(T).GetMember(sortKeyName, BindingFlags.Instance | BindingFlags.Public).FirstOrDefault() ??
+                throw new ArgumentOutOfRangeException(nameof(indexProperties), $"'{sortKey}' is not a valid instance member of '{typeof(T).FullName}'");
         }
 
         return TableDescription.Get(typeof(T)).GetIndexName(partitionKey, sortKey);
     }
 
-    public static string GetIndexName<T>(this Expression<Func<T, bool>> expression, ExpressionTranslationContext<T> context) where T : class
+    public static string? GetIndexName<T>(this Expression<Func<T, bool>> expression) where T : class
     {
-        ArgumentNullException.ThrowIfNull(context);
+        var reducedExpression = expression.TryReduceExpression();
 
-        expression = expression.Apply(new ReduceExpressionVisitor());
+        var partitionKey = GetMemberOf<T>(reducedExpression.FindFirst(IsMemberOfTypeWithAttribute<T, PartitionKeyAttribute>));
+        var sortKey = GetMemberOf<T>(reducedExpression.FindFirst(IsMemberOfTypeWithAttribute<T, SortKeyAttribute>));
 
-        var partitionKey = expression.FindFirst(IsMemberOfTypeWithAttribute<T, PartitionKeyAttribute>, GetMemberOf<T>);
-        var sortKey = expression.FindFirst(IsMemberOfTypeWithAttribute<T, SortKeyAttribute>, GetMemberOf<T>);
-
-        return
-            partitionKey != null
+        return partitionKey != null
             ? TableDescription.Get(typeof(T)).GetIndexName(partitionKey, sortKey)
             : null;
     }
 
-    public static string Translate<T>(this Expression<Func<T, bool>> expression, ExpressionTranslationContext<T> context) where T : class => 
-        expression.Body.ResolveConstants().Translate(context);
+    public static string Translate<T>(this Expression<Func<T, bool>> expression, ExpressionTranslationContext context) where T : class =>
+        expression.Body.ResolveExplicitConstants().Translate(context, isPredicate: true);
 
-    public static string Translate<T>(this Expression<Func<T, DynamoDBExpressions.UpdateAction>> expression, ExpressionTranslationContext<T> context) where T : class => 
-        expression.Apply(new HandleEmptyValuesForUpdateVisitor(context.IsSerializedToEmpty)).Body.ResolveConstants().Translate(context);
+    public static string Translate<T>(this Expression<Func<T, DynamoDBExpressions.UpdateAction>> expression, ExpressionTranslationContext context) where T : class =>
+        expression.Body.ReplaceSetToEmptyWithRemove(context).ResolveExplicitConstants().Translate(context);
 
-    public static Expression<Func<T, TResult>> ReplaceConstantWithParameter<T, TResult>(this Expression<Func<TResult>> expression, T value, [CallerArgumentExpression(nameof(value))] string parameterName = null)
+    public static Expression<Func<T, TResult>> ReplaceConstantWithParameter<T, TResult>(this Expression<Func<TResult>> expression, T value, [CallerArgumentExpression(nameof(value))] string? parameterName = null) where T : class
     {
         var parameter = Expression.Parameter(typeof(T), parameterName);
 
         return Expression.Lambda<Func<T, TResult>>(
-            expression.Body.ResolveConstants().FindReplace(
+            expression.Body.ResolveExplicitConstants().FindReplace(
                 find: expression => expression.IsReferenceTo(value),
                 replace: parameter),
             expression.Parameters.Append(parameter));
     }
 
-    public static Expression FindReplace(this Expression expression, Func<Expression, bool> find, Expression replace) =>
-        new FindReplaceVisitor(find, replace).Visit(expression);
-
-    public static Expression ResolveConstants(this Expression expression) =>
-        new ResolveConstantsVisitor().Visit(expression);
-
-    static string SurroundWithParenthesesIfNeeded(string expression)
-    {
-        return
-            expression.IndexOf(" OR ", StringComparison.OrdinalIgnoreCase) >= 0 ||
-            expression.IndexOf(" AND ", StringComparison.OrdinalIgnoreCase) >= 0
-                ? $"({expression})" :
-                expression;
-    }
-
-    public static string AppendUpdate(string expression, string action, string arguments)
+    public static string AppendUpdate(string? expression, string action, string arguments)
     {
         ArgumentNullException.ThrowIfNull(action);
         ArgumentNullException.ThrowIfNull(arguments);
@@ -99,14 +77,14 @@ public static class ExpressionTranslator
         if (i < 0)
             return $"{expression}\n{action} {arguments}";
 
-        i = expression.IndexOf("\n", i + action.Length + 1, StringComparison.Ordinal);
+        i = expression.IndexOf('\n', i + action.Length + 1);
         if (i < 0)
             i = expression.Length;
 
-        return $"{expression.Substring(0, i)}, {arguments}{expression.Substring(i)}";
+        return $"{expression[..i]}, {arguments}{expression[i..]}";
     }
 
-    public static string AppendCondition(string expression, string condition, string binaryOperator)
+    public static string AppendCondition(string? expression, string condition, string binaryOperator)
     {
         ArgumentNullException.ThrowIfNull(condition);
         ArgumentNullException.ThrowIfNull(binaryOperator);
@@ -121,7 +99,32 @@ public static class ExpressionTranslator
         return $"{left} {binaryOperator} {right}";
     }
 
-    static string Translate<T>(this Expression expression, ExpressionTranslationContext<T> context) where T : class
+    internal static Expression? FindFirst(this Expression? expression, Func<Expression, bool> predicate)
+    {
+        var search = new FindFirstVisitor(predicate);
+
+        search.Visit(expression);
+
+        return search.Result;
+    }
+
+    [return: NotNullIfNotNull(nameof(expression))]
+    internal static Expression? FindReplace(this Expression? expression, Func<Expression, bool> find, Expression replace) =>
+        new FindReplaceVisitor(find, replace).Visit(expression);
+
+    internal static Expression ResolveExplicitConstants(this Expression expression) =>
+        new ResolveExplicitConstantsVisitor().Visit(expression);
+
+    internal static Expression ReplaceSetToEmptyWithRemove(this Expression expression, ExpressionTranslationContext context) =>
+        new ReplaceSetToEmptyWithRemoveVisitor(context).Visit(expression);
+
+    static string SurroundWithParenthesesIfNeeded(string expression) =>
+        expression.Contains(" OR ", StringComparison.OrdinalIgnoreCase) ||
+        expression.Contains(" AND ", StringComparison.OrdinalIgnoreCase)
+            ? $"({expression})"
+            : expression;
+
+    static string Translate(this Expression expression, ExpressionTranslationContext context, bool isPredicate = false)
     {
         ArgumentNullException.ThrowIfNull(context);
 
@@ -129,136 +132,188 @@ public static class ExpressionTranslator
 
         return expression.NodeType switch
         {
-            ExpressionType.Convert or 
-            ExpressionType.ConvertChecked => 
+            ExpressionType.Convert or
+            ExpressionType.ConvertChecked =>
                 ((UnaryExpression)expression).Operand.Translate(context),
-            
-            ExpressionType.Call => 
+
+            ExpressionType.Call =>
                 ((MethodCallExpression)expression).TranslateCall(context),
-            
-            ExpressionType.Constant => 
+
+            ExpressionType.Constant =>
                 ((ConstantExpression)expression).TranslateConstant(context),
-            
-            ExpressionType.MemberAccess => 
-                ((MemberExpression)expression).TranslateMember(context),
-            
-            ExpressionType.Index or 
-            ExpressionType.ArrayIndex => 
+
+            ExpressionType.MemberAccess =>
+                ((MemberExpression)expression).TranslateMember(context, isPredicate),
+
+            ExpressionType.Index or
+            ExpressionType.ArrayIndex =>
                 ((IndexExpression)expression).TranslateIndex(context),
-            
-            ExpressionType.Add or 
-            ExpressionType.AddChecked => 
+
+            ExpressionType.Add or
+            ExpressionType.AddChecked =>
                 ((BinaryExpression)expression).TranslateBinary("+", context),
-            
-            ExpressionType.Subtract or 
-            ExpressionType.SubtractChecked => 
+
+            ExpressionType.Subtract or
+            ExpressionType.SubtractChecked =>
                 ((BinaryExpression)expression).TranslateBinary("-", context),
-            
-            ExpressionType.Equal => 
+
+            ExpressionType.Equal =>
                 ((BinaryExpression)expression).TranslateBinary("=", context),
-            
-            ExpressionType.NotEqual => 
+
+            ExpressionType.NotEqual =>
                 ((BinaryExpression)expression).TranslateBinary("<>", context),
-            
-            ExpressionType.LessThan => 
+
+            ExpressionType.LessThan =>
                 ((BinaryExpression)expression).TranslateBinary("<", context),
-            
-            ExpressionType.LessThanOrEqual => 
+
+            ExpressionType.LessThanOrEqual =>
                 ((BinaryExpression)expression).TranslateBinary("<=", context),
-            
-            ExpressionType.GreaterThan => 
+
+            ExpressionType.GreaterThan =>
                 ((BinaryExpression)expression).TranslateBinary(">", context),
-            
-            ExpressionType.GreaterThanOrEqual => 
+
+            ExpressionType.GreaterThanOrEqual =>
                 ((BinaryExpression)expression).TranslateBinary(">=", context),
-            
-            ExpressionType.AndAlso => 
-                ((BinaryExpression)expression).TranslateBinary("AND", context),
-            
-            ExpressionType.OrElse => 
-                ((BinaryExpression)expression).TranslateBinary("OR", context),
-            
-            ExpressionType.Not => 
-                ((UnaryExpression)expression).TranslateUnary("NOT", context),
-            
-            ExpressionType.And => 
+
+            ExpressionType.AndAlso =>
+                ((BinaryExpression)expression).TranslateBinary("AND", context, isPredicate: true),
+
+            ExpressionType.OrElse =>
+                ((BinaryExpression)expression).TranslateBinary("OR", context, isPredicate: true),
+
+            ExpressionType.Not =>
+                ((UnaryExpression)expression).TranslateUnary("NOT", context, isPredicate: true),
+
+            ExpressionType.And =>
                 ((BinaryExpression)expression).CombineUpdateActions(context),
-            
-            _ => Unsupported(expression),
+
+            ExpressionType.TypeIs =>
+                ((TypeBinaryExpression)expression).TranslateTypeIs(context),
+
+            _ => throw Unsupported(expression)
         };
     }
 
-    static string TranslateCall<T>(this MethodCallExpression expression, ExpressionTranslationContext<T> context) where T : class
+    static string TranslateCall(this MethodCallExpression expression, ExpressionTranslationContext context)
     {
         var method = expression.Method;
+        var arguments = expression.Arguments.ToArray();
         var translatesTo = method.GetCustomAttribute<DynamoDBExpressions.TranslatesTo>();
 
-        if (expression.Object != null && method.Name.Equals("get_Item", StringComparison.Ordinal))
-            return expression.Object.TranslateIndex(expression.Arguments, context);
-
-        if (method.DeclaringType == typeof(DynamoDBExpressions) && translatesTo != null)
+        if (expression.Object is not null)
         {
-            var arguments = expression.Arguments.ToArray();
-            var translatedArguments = arguments.TranslateArguments(context);
-
-            if (translatesTo.HasParams)
-            {
-                var paramsArgument = arguments.Last();
-                var translatedParamsArgument = (
-                    (paramsArgument as NewArrayExpression)?.Expressions?.AsEnumerable() ??
-                    ((paramsArgument.TryReduceExpression() as ConstantExpression)?.Value as IEnumerable)?.Cast<object>()?.Select(Expression.Constant))?.
-                    TranslateArguments(context);
-
-                if (translatedParamsArgument == null)
-                    return Unsupported(expression);
-
-                translatedArguments =
-                    translatedArguments.
-                        Take(arguments.Length - 1).
-                        Append(string.Join(", ", translatedParamsArgument));
-            }
-
-            return string.Format(translatesTo.Format, translatedArguments.Cast<object>().ToArray());
+            if (method.Name.Equals("get_Item", StringComparison.Ordinal))
+                return expression.Object.TranslateIndex(arguments, context);
+        
+            arguments = [expression.Object, .. arguments];
         }
 
-        return Unsupported(expression);
+        translatesTo ??=
+            ((method.Name, arguments)) switch
+            {
+                ("StartsWith", { Length: 2 }) => new("begins_with({0}, {1})"),
+                ("Contains", { Length: 2 }) => new("contains({0}, {1})"),
+                ("Count", { Length: 1 }) => new("size({0})"),
+                _ => null
+            };
+
+        if (translatesTo is not null)
+        {
+            var arrayConstantKind = translatesTo.ArrayConstantKind;
+
+            if (arrayConstantKind == DynamoDBExpressions.ArrayConstantKind.FromFirstOperandType)
+                arrayConstantKind = DetermineArrayConstantKindFromType(arguments.FirstOrDefault()?.Type);
+
+            if (arrayConstantKind != DynamoDBExpressions.ArrayConstantKind.Unspecified)
+                context.ArrayConstantKind.Push(arrayConstantKind);
+
+            try
+            {
+                var translatedArguments = arguments.TranslateArguments(context);
+
+                if (translatesTo.HasParams)
+                {
+                    var paramsArgument = arguments.Last();
+
+                    var translatedParamsArgument = ((
+                        (paramsArgument as NewArrayExpression)?.Expressions?.AsEnumerable() ??
+                        ((paramsArgument.TryReduceExpression() as ConstantExpression)?.Value as IEnumerable)?
+                            .Cast<object>()?.Select(Expression.Constant))?
+                            .TranslateArguments(context)) ??
+                        throw Unsupported(expression);
+
+                    translatedArguments =
+                        translatedArguments
+                            .Take(arguments.Length - 1)
+                            .Append(string.Join(", ", translatedParamsArgument));
+                }
+
+                return string.Format(translatesTo.Format, translatedArguments.Cast<object>().ToArray());
+            }
+            finally
+            {
+                if (arrayConstantKind != DynamoDBExpressions.ArrayConstantKind.Unspecified)
+                    context.ArrayConstantKind.Pop();
+            }
+        }
+
+        throw Unsupported(expression);
     }
 
-    static string TranslateConstant<T>(this ConstantExpression expression, ExpressionTranslationContext<T> context) where T : class
+    static string TranslateConstant(this ConstantExpression expression, ExpressionTranslationContext context)
     {
         var value = expression.Value;
 
-        if (value is DynamoDBExpressions.RawExpression)
+        if (value is DynamoDBExpressions.RawExpression raw)
         {
-            var raw = (DynamoDBExpressions.RawExpression)value;
             context.Add(raw);
             return raw.expression;
         }
 
-        if (value is Array && value is not byte[])
+        if (value is DynamoDBType dynamoDBType)
+            return TranslateConstant(Expression.Constant(ToDynamoDBTypeString(dynamoDBType)), context);
+
+        var type = expression.Type;
+
+        if (value is Array array)
         {
-            var elementType = value.GetType().GetElementType();
-            if (context.Serializer.TryCreateDynamoDBSet(elementType, (IEnumerable)value, out var dynamoDBSet))
-                value = dynamoDBSet;
+            switch (context.ArrayConstantKind.Peek())
+            {
+                case DynamoDBExpressions.ArrayConstantKind.Set:
+                    value = DynamoDBSet.CreateSet(array);
+                    type = value.GetType();
+                    break;
+
+                case DynamoDBExpressions.ArrayConstantKind.List:
+                    value = DynamoDBList.CreateList(array);
+                    type = value.GetType();
+                    break;
+            }
         }
 
-        var serializedValue = context.Serializer.SerializeDynamoDBValue(value, expression.Type, context.SerializeFlags | SerializeDynamoDBValueFlags.PersistAll);
+        var serializedValue = context.Serializer.SerializeDynamoDBValue(value, type);
 
         return context.GetOrAddAttributeValue(serializedValue);
     }
 
-    static string TranslateMember<T>(this MemberExpression expression, ExpressionTranslationContext<T> context) where T : class
+    static string TranslateMember(this MemberExpression expression, ExpressionTranslationContext context, bool isPredicate = false)
     {
+        if (expression.Expression == null)
+            throw Unsupported(expression);
+
+        if (isPredicate && expression.Type == typeof(bool))
+            return Expression.Equal(expression, Expression.Constant(true)).Translate(context);
+
         var member = expression.Member;
-        var memberPropertyName = context.Serializer.GetSerializedPropertyName(member);
+        var memberPropertyInfo = context.Serializer.GetPropertyAttributeInfo((expression.Expression.Type, member.Name));
 
-        if (memberPropertyName == null)
-            throw new InvalidOperationException($"No property name defined for member {member.Name} of type {member.DeclaringType.FullName}");
+        if (memberPropertyInfo.NotSerialized)
+            throw Unsupported($"Property '{member.Name}' of type '{member.DeclaringType?.FullName}' is not serialized");
 
-        return expression.Expression.TranslateMember(memberPropertyName, context);
+        return expression.Expression.TranslateMember(memberPropertyInfo.AttributeName, context);
     }
 
-    static string TranslateMember<T>(this Expression expression, string memberName, ExpressionTranslationContext<T> context) where T : class
+    static string TranslateMember(this Expression expression, string memberName, ExpressionTranslationContext context)
     {
         if (Identifier.NeedToBeAliased(memberName))
             memberName = context.GetOrAddAttributeName(memberName);
@@ -269,65 +324,72 @@ public static class ExpressionTranslator
         return expression.Translate(context) + "." + memberName;
     }
 
-    static string TranslateIndex<T>(this IndexExpression expression, ExpressionTranslationContext<T> context) where T : class => 
-        expression.Object.TranslateIndex(expression.Arguments, context);
+    static string TranslateIndex(this IndexExpression expression, ExpressionTranslationContext context) =>
+        (expression.Object ?? throw Unsupported(expression)).TranslateIndex(expression.Arguments, context);
 
-    static string TranslateIndex<T>(this Expression expression, IList<Expression> arguments, ExpressionTranslationContext<T> context) where T : class
+    static string TranslateIndex(this Expression expression, IList<Expression> arguments, ExpressionTranslationContext context)
     {
         if (arguments.Count == 1)
         {
             var indexValue = (arguments[0].TryReduceExpression() as ConstantExpression)?.Value;
             if (indexValue != null)
             {
-                var serializedIndexValue = context.Serializer.SerializeDynamoDBValue(indexValue, indexValue.GetType(), context.SerializeFlags | SerializeDynamoDBValueFlags.PersistAll);
+                var serializedIndexValue = context.Serializer.SerializeDynamoDBValue(indexValue, indexValue.GetType());
+                var typeInfo = GenericTypeInfo.Get(expression.Type);
+                if (typeInfo.IsDictionaryType)
+                {
+                    var memberName = serializedIndexValue.S ?? serializedIndexValue.N ?? serializedIndexValue.B?.ToBase64String();
 
-                if (!string.IsNullOrEmpty(serializedIndexValue.S))
-                    return expression.TranslateMember(serializedIndexValue.S, context);
-
-                if (!string.IsNullOrEmpty(serializedIndexValue.N))
-                    return $"{expression.Translate(context)}[{serializedIndexValue.N}]";
+                    if (!string.IsNullOrEmpty(memberName))
+                        return expression.TranslateMember(memberName, context);
+                }
+                else if (typeInfo.IsListType)
+                {
+                    if (!string.IsNullOrEmpty(serializedIndexValue.N))
+                        return $"{expression.Translate(context)}[{serializedIndexValue.N}]";
+                }
             }
         }
 
-        return Unsupported(expression);
+        throw Unsupported(expression);
     }
 
-    static string TranslateBinary<T>(this BinaryExpression expression, string binaryOperation, ExpressionTranslationContext<T> context) where T : class
+    static string TranslateBinary(this BinaryExpression expression, string binaryOperation, ExpressionTranslationContext context, bool isPredicate = false)
     {
         var left =
-            (expression.Left is ConstantExpression && IsConvertFromEnum(expression.Right))
-            ? TranslateConstant(
-                Expression.Constant(
-                    Enum.ToObject(
-                        ((UnaryExpression)expression.Right).Operand.Type,
-                        ((ConstantExpression)expression.Left).Value)),
-                context)
-            : expression.Left.Translate(context);
+            expression.Left is ConstantExpression && IsConvertFromEnum(expression.Right)
+                ? TranslateConstant(
+                    Expression.Constant(
+                        Enum.ToObject(
+                            ((UnaryExpression)expression.Right).Operand.Type,
+                            ((ConstantExpression)expression.Left).Value ?? throw Unsupported(expression))),
+                    context)
+                : expression.Left.Translate(context, isPredicate);
 
         var right =
-            (IsConvertFromEnum(expression.Left) && expression.Right is ConstantExpression)
-            ? TranslateConstant(
-                Expression.Constant(
-                    Enum.ToObject(
-                        ((UnaryExpression)expression.Left).Operand.Type,
-                        ((ConstantExpression)expression.Right).Value)),
-                context)
-            : expression.Right.Translate(context);
+            IsConvertFromEnum(expression.Left) && expression.Right is ConstantExpression
+                ? TranslateConstant(
+                    Expression.Constant(
+                        Enum.ToObject(
+                            ((UnaryExpression)expression.Left).Operand.Type,
+                            ((ConstantExpression)expression.Right).Value ?? throw Unsupported(expression))),
+                    context)
+                : expression.Right.Translate(context, isPredicate);
 
         return AppendCondition(left, right, binaryOperation);
     }
 
-    static string TranslateUnary<T>(this UnaryExpression expression, string unaryOperation, ExpressionTranslationContext<T> context) where T : class
+    static string TranslateUnary(this UnaryExpression expression, string unaryOperation, ExpressionTranslationContext context, bool isPredicate = false)
     {
-        var operand = expression.Operand.Translate(context);
+        var operand = expression.Operand.Translate(context, isPredicate);
 
         return $"{unaryOperation} {SurroundWithParenthesesIfNeeded(operand)}";
     }
 
-    static string CombineUpdateActions<T>(this BinaryExpression expression, ExpressionTranslationContext<T> context) where T : class
+    static string CombineUpdateActions(this BinaryExpression expression, ExpressionTranslationContext context)
     {
         if (expression.Type != typeof(DynamoDBExpressions.UpdateAction))
-            return Unsupported(expression);
+            throw Unsupported(expression);
 
         var left = expression.Left.Translate(context);
         var right = expression.Right.Translate(context);
@@ -335,41 +397,56 @@ public static class ExpressionTranslator
         if (string.IsNullOrEmpty(right))
             return left;
 
-        var i = right.IndexOf(" ", StringComparison.Ordinal);
-        var action = right.Substring(0, Math.Max(i, 0));
-        var arguments = right.Substring(i + 1);
+        var i = right.IndexOf(' ');
+        var action = right[..Math.Max(i, 0)];
+        var arguments = right[(i + 1)..];
 
         return AppendUpdate(left, action, arguments);
     }
 
-    static bool IsConvertFromEnum(this Expression expression)
+    static string TranslateTypeIs(this TypeBinaryExpression expression, ExpressionTranslationContext context)
     {
-        switch (expression.NodeType)
-        {
-            case ExpressionType.Convert:
-            case ExpressionType.ConvertChecked:
-                return ((UnaryExpression)expression).Operand.Type.IsEnum;
+        var typeNameResolver = context.Serializer.ObjectTypeNameResolver;
+        var typeDiscriminatorAttribute = context.GetOrAddAttributeName(typeNameResolver.Attribute);
+        var typeNameValue = context.GetOrAddAttributeValue(new() { S = typeNameResolver.GetTypeName(expression.TypeOperand) });
 
-            default:
-                return false;
-        }
+        return $"{typeDiscriminatorAttribute} = {typeNameValue}";
     }
-    
-    static bool IsReferenceTo(this Expression expression, object value) =>
-        expression.TryResolveConstantValue(out var constantValue) && ReferenceEquals(value, constantValue);
 
-    static IEnumerable<string> TranslateArguments<T>(this IEnumerable<Expression> arguments, ExpressionTranslationContext<T> context) where T : class =>
+    static DynamoDBExpressions.ArrayConstantKind DetermineArrayConstantKindFromType(Type? type)
+    {
+        if (type != null)
+        {
+            var typeInfo = GenericTypeInfo.Get(type);
+
+            if (DynamoDBSet.IsSupportedType(type, typeInfo, out var _))
+                return DynamoDBExpressions.ArrayConstantKind.Set;
+
+            if (DynamoDBList.IsSupportedType(type, typeInfo, out var _))
+                return DynamoDBExpressions.ArrayConstantKind.List;
+        }
+
+        return DynamoDBExpressions.ArrayConstantKind.Unspecified;
+    }
+
+
+    static bool IsConvertFromEnum(this Expression expression) =>
+        expression is UnaryExpression unaryExpression &&
+        unaryExpression.NodeType is ExpressionType.Convert or ExpressionType.ConvertChecked &&
+        unaryExpression.Operand.Type.IsEnum;
+
+    static bool IsReferenceTo<T>(this Expression expression, T value) =>
+        expression.TryResolveConstantValue<T>(out var constantValue) && ReferenceEquals(value, constantValue);
+
+    static IEnumerable<string> TranslateArguments(this IEnumerable<Expression> arguments, ExpressionTranslationContext context) =>
         arguments.Select(argument => argument.Translate(context));
-
-    static object InvokeExpression(Expression expression) =>
-        ExpressionInvoker.Get(expression.Type).Invoke(expression);
 
     static Expression TryReduceExpression(this Expression expression)
     {
         expression = TryReduceConditionalExpression(expression);
-    
+
         if (!(expression.IsConvertFromEnum() || expression.Contains(IsParameterOrRawExpression)))
-            expression = Expression.Constant(InvokeExpression(expression), expression.Type);
+            expression = Expression.Constant(expression.Invoke(), expression.Type);
 
         return expression;
     }
@@ -385,11 +462,11 @@ public static class ExpressionTranslator
         return expression;
     }
 
-    static bool TryResolveConstantValue(this Expression expression, out object constantValue)
+    static bool TryResolveConstantValue<T>(this Expression expression, out object? constantValue)
     {
-        if (expression.CanResolveConstantValue())
+        if (typeof(T) == expression.Type && expression.CanResolveConstantValue())
         {
-            constantValue = InvokeExpression(expression);
+            constantValue = expression.Invoke();
             return true;
         }
         else
@@ -401,97 +478,100 @@ public static class ExpressionTranslator
 
     static bool CanResolveConstantValue(this Expression expression) =>
         expression is ConstantExpression constantExpression ||
-        (expression is MemberExpression memberExpression && 
-            memberExpression.Expression.CanResolveConstantValue()) ||
-        (expression is IndexExpression indexExpression && 
-            indexExpression.Object.CanResolveConstantValue() &&
+        (expression is MemberExpression memberExpression &&
+            memberExpression.Expression?.CanResolveConstantValue() is true) ||
+        (expression is IndexExpression indexExpression &&
+            indexExpression.Object?.CanResolveConstantValue() is true &&
             indexExpression.Arguments.All(argument => argument.CanResolveConstantValue()));
-
-    static T Apply<T>(this T expression, ExpressionVisitor expressionVisitor) where T : LambdaExpression =>
-        (T)Expression.Lambda(expressionVisitor.Visit(expression.Body), expression.Parameters);
 
     static bool IsParameterOrRawExpression(Expression node) =>
         (node is ParameterExpression || (node as ConstantExpression)?.Value is DynamoDBExpressions.RawExpression);
 
     static bool IsMemberOfTypeWithAttribute<T, TAttribute>(Expression expression) =>
-        (GetMemberOf<T>(expression)?.GetCustomAttributes(typeof(TAttribute), true)?.Any() == true);
+        GetMemberOf<T>(expression)?.GetCustomAttributes(typeof(TAttribute), true)?.Length > 0;
 
-    static MemberInfo GetMemberOf<T>(Expression expression)
-    {
-        var memberExpression = expression as MemberExpression;
-
-        if (memberExpression != null && 
-            memberExpression.Expression != null &&
-            typeof(T).IsAssignableFrom(memberExpression.Expression.Type))
-            return memberExpression.Member;
-
-        return null;
-    }
+    static MemberInfo? GetMemberOf<T>(Expression? expression) =>
+        expression is MemberExpression memberExpression &&
+        memberExpression.Expression != null &&
+        typeof(T).IsAssignableFrom(memberExpression.Expression.Type)
+            ? memberExpression.Member
+            : null;
 
     static bool Contains(this Expression expression, Func<Expression, bool> predicate) =>
-        expression.FindFirst(predicate, node => true);
+        expression.FindFirst(predicate) != null;
 
-    static TValue FindFirst<TValue>(this Expression expression, Func<Expression, bool> predicate, Func<Expression, TValue> selector)
-    {
-        var search = new FindFirstVisitor<TValue>(predicate, selector);
-        
-        search.Visit(expression);
-
-        return search.Result;
-    }
-
-    static string Unsupported(Expression expression)
-    {
-        throw new InvalidOperationException($"Expression is unsupported: {expression}");
-    }
-
-    class FindFirstVisitor<TValue> : ExpressionVisitor
-    {
-        Func<Expression, bool> predicate;
-        Func<Expression, TValue> selector;
-
-        public FindFirstVisitor(Func<Expression, bool> predicate, Func<Expression, TValue> selector)
+    static string? ToDynamoDBTypeString(DynamoDBType dynamoDBType) =>
+        dynamoDBType switch
         {
-            this.predicate = predicate;
-            this.selector = selector;
-        }
+            DynamoDBType.Null => "NULL",
+            DynamoDBType.Bool => "BOOL",
+            DynamoDBType.String => "S",
+            DynamoDBType.Number => "N",
+            DynamoDBType.Binary => "B",
+            DynamoDBType.StringSet => "SS",
+            DynamoDBType.NumberSet => "NS",
+            DynamoDBType.BinarySet => "BS",
+            DynamoDBType.List => "L",
+            DynamoDBType.Map => "M",
+            _ => null
+        };
 
-        public TValue Result { get; private set; }
+    static InvalidOperationException Unsupported(Expression expression) => Unsupported($"Expression is unsupported: {expression}");
+
+    static InvalidOperationException Unsupported(string message) => new(message);
+
+    class FindFirstVisitor(Func<Expression, bool> predicate) : ExpressionVisitor
+    {
+        public Expression? Result { get; private set; }
+
         public bool HasResult { get; private set; }
 
-        public override Expression Visit(Expression node)
+        [return: NotNullIfNotNull(nameof(node))]
+        public override Expression? Visit(Expression? node)
         {
-            if (!HasResult && predicate(node))
-                Result = selector(node);
+            if (!HasResult && node != null && predicate(node))
+                Result = node;
 
             return base.Visit(node);
         }
     }
 
-    class ReduceExpressionVisitor : ExpressionVisitor
+    class FindReplaceVisitor(Func<Expression, bool> find, Expression replace) : ExpressionVisitor
     {
-        public override Expression Visit(Expression node) =>
-            base.Visit(node)?.TryReduceExpression();
+        [return: NotNullIfNotNull(nameof(node))]
+        public override Expression? Visit(Expression? node) =>
+            node != null && find(node) ? replace : base.Visit(node);
     }
 
-    class HandleEmptyValuesForUpdateVisitor : ExpressionVisitor
+    class ResolveExplicitConstantsVisitor : ExpressionVisitor
     {
-        Func<object, bool> isSerializedToEmpty;
-
-        public HandleEmptyValuesForUpdateVisitor(Func<object, bool> isSerializedToEmpty)
+        protected override Expression VisitMethodCall(MethodCallExpression node)
         {
-            this.isSerializedToEmpty = isSerializedToEmpty;
-        }
+            if (node.Method.DeclaringType == typeof(DynamoDBExpressions) &&
+                node.Method.Name == nameof(DynamoDBExpressions.Constant))
+            {
+                if (node.Arguments[0].TryReduceExpression() is not ConstantExpression constantExpression)
+                    throw Unsupported($"Expression can not be resolved as constant: {node.Arguments[0]}");
 
+                return constantExpression;
+            }
+
+            return base.VisitMethodCall(node);
+        }
+    }
+
+    class ReplaceSetToEmptyWithRemoveVisitor(ExpressionTranslationContext context) : ExpressionVisitor
+    {
         protected override Expression VisitMethodCall(MethodCallExpression node) =>
-            base.VisitMethodCall(ReplaceSetWithRemoveForEmptyValues(node));
-    
-        MethodCallExpression ReplaceSetWithRemoveForEmptyValues(MethodCallExpression node)
+            base.VisitMethodCall(TryReplace(node));
+
+        MethodCallExpression TryReplace(MethodCallExpression node)
         {
             if (node.Method.DeclaringType == typeof(DynamoDBExpressions) &&
                 node.Method.Name == nameof(DynamoDBExpressions.Set) &&
-                TryReduceExpression(node.Arguments[1]) is ConstantExpression operandArgument && 
-                isSerializedToEmpty(operandArgument.Value))
+                TryReduceExpression(node.Arguments[1]) is ConstantExpression operandArgument &&
+                node.Arguments[0] is MemberExpression { Member: var member } &&
+                !IsSerializedAttributeValue(operandArgument.Value, member))
             {
                 var pathArgument = node.Arguments[0];
                 return Expression.Call(
@@ -502,39 +582,13 @@ public static class ExpressionTranslator
             }
 
             return node;
-        }           
-    }
-
-    class FindReplaceVisitor : ExpressionVisitor
-    {
-        Func<Expression, bool> find;
-        Expression replace;
-
-        public FindReplaceVisitor(Func<Expression, bool> find, Expression replace)
-        {
-            this.find = find;
-            this.replace = replace;
         }
 
-        public override Expression Visit(Expression node) =>
-            find(node) ? replace : base.Visit(node);
-    }
-
-    class ResolveConstantsVisitor : ExpressionVisitor
-    {
-        protected override Expression VisitMethodCall(MethodCallExpression node)
-        {
-            if (node.Method.DeclaringType == typeof(DynamoDBExpressions) && 
-                node.Method.Name == nameof(DynamoDBExpressions.Constant))
-            {
-                if (node.Arguments[0].TryReduceExpression() is not ConstantExpression constantExpression)
-                    throw new InvalidOperationException($"Expression can not be resolved as constant: {node.Arguments[0]}");
-
-                return constantExpression;
-            }
-
-            return base.VisitMethodCall(node);
-        }
+        bool IsSerializedAttributeValue(object? value, MemberInfo property) =>
+            DefaultDynamoDBTypeConverter.IsSerializedAttributeValue(
+                context.Serializer.GetPropertyAttributeInfo(property), 
+                property.GetPropertyType(), 
+                value);
     }
 
     static class Identifier
@@ -543,12 +597,15 @@ public static class ExpressionTranslator
             string.IsNullOrEmpty(name) || IsDigit(name[0]) || !name.All(IsLetterOrDigit) || reservedKeywords.Contains(name);
 
         static bool IsLowerCaseLetter(char c) => (c >= 'a' && c <= 'z');
+
         static bool IsUpperCaseLetter(char c) => (c >= 'A' && c <= 'Z');
+
         static bool IsDigit(char c) => (c >= '0' && c <= '9');
+
         static bool IsLetterOrDigit(char c) => IsLowerCaseLetter(c) || IsUpperCaseLetter(c) || IsDigit(c);
 
         static readonly HashSet<string> reservedKeywords =
-            new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            new(StringComparer.OrdinalIgnoreCase)
             {
                 "ABORT",
                 "ABSOLUTE",
@@ -1124,22 +1181,5 @@ public static class ExpressionTranslator
                 "YEAR",
                 "ZONE"
             };
-    }
-
-    abstract class ExpressionInvoker
-    {
-        public abstract object Invoke(Expression expression);
-        
-        static readonly ConcurrentDictionary<Type, ExpressionInvoker> cachedInvokers = [];
-
-        public static ExpressionInvoker Get(Type type) => 
-            cachedInvokers.GetOrAdd(type, static type => (ExpressionInvoker)
-                System.Activator.CreateInstance(typeof(ExpressionInvoker<>).MakeGenericType(type)));
-    }
-
-    class ExpressionInvoker<T> : ExpressionInvoker
-    {
-        public override object Invoke(Expression expression) => 
-            Expression.Lambda<Func<T>>(expression).Compile()();
     }
 }

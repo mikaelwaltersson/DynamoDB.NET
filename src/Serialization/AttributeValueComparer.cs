@@ -1,92 +1,69 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
 using Amazon.DynamoDBv2.Model;
 
-namespace DynamoDB.Net;
+namespace DynamoDB.Net.Serialization;
 
 public class AttributeValueComparer : IEqualityComparer<AttributeValue>
 {
     public static AttributeValueComparer Default { get; } = new AttributeValueComparer();
     
-    public bool Equals(AttributeValue x, AttributeValue y)
-    {
-        if (x != null && y != null)
+    public bool Equals(AttributeValue? x, AttributeValue? y) =>
+        x switch
         {
-            if (x.NULL)
-                return y.NULL;
-            else if (x.IsBOOLSet)
-                return y.IsBOOLSet && x.BOOL == y.BOOL;
-            else if (x.S != null)
-                return y.S != null && x.S == y.S;
-            else if (x.N != null)
-                return y.N != null && x.N == y.N;
-            else if (x.B != null)
-                return y.B != null && Equals(x.B, y.B);
-            else if (x.SS != null && x.SS.Count > 0)
-                return y.SS != null && x.SS.SequenceEqual(y.SS);
-            else if (x.NS != null && x.NS.Count > 0)
-                return y.NS != null && x.NS.SequenceEqual(y.NS);
-            else if (x.BS != null && x.BS.Count > 0)
-                return y.BS != null && x.BS.SequenceEqual(y.BS, MemoryStreamComparer.Default);
-            else if (x.IsLSet)
-                return y.IsLSet && x.L.SequenceEqual(y.L, Default);
-            else if (x.IsMSet)
-                return y.IsMSet && x.M.Count == y.M.Count && x.M.All(entry => y.M.TryGetValue(entry.Key, out var value) && Equals(entry.Value, value));
-        }
+            null => y == null,
 
-        return ReferenceEquals(x, y);
-    }
+            { NULL: true } => y is { NULL: true },
+
+            { IsBOOLSet: true } => y is { IsBOOLSet: true } && x.BOOL == y.BOOL,
+
+            { S: not null } => y is { S: not null } && x.S == y.S,
+
+            { N: not null } => y is { N: not null } && x.N == y.N,
+
+            { B: not null } => y is { B: not null } && MemoryStreamComparer.Default.Equals(x.B, y.B),
+
+            { SS.Count: > 0 } => y is { SS.Count: > 0 } && x.SS.SequenceEqual(y.SS),
+
+            { NS.Count: > 0 } => y is { NS.Count: > 0 } && x.NS.SequenceEqual(y.NS),
+
+            { BS.Count: > 0 } => y is { BS.Count: > 0 } && x.BS.SequenceEqual(y.BS, MemoryStreamComparer.Default),
+
+            { IsLSet: true } => y is { IsLSet: true } && x.L.SequenceEqual(y.L, this),
+
+            { IsMSet: true } => 
+                y is { IsMSet: true } && 
+                x.M.Count == y.M.Count && 
+                x.M.All(xEntry => y.M.TryGetValue(xEntry.Key, out var yValue) && Equals(xEntry.Value, yValue)),
+
+            _ => y != null && y.IsEmpty()
+        };
 
     public int GetHashCode(AttributeValue obj)
     {
-        if (obj != null)
+        ArgumentNullException.ThrowIfNull(obj);
+
+        return obj switch 
         {
-            if (obj.NULL)
-                return 0;
-            else if (obj.IsBOOLSet)
-                return obj.BOOL.GetHashCode();
-            else if (obj.S != null)
-                return obj.S.GetHashCode();
-            else if (obj.N != null)
-                return obj.N.GetHashCode();
-            else if (obj.B != null)
-                return MemoryStreamComparer.Default.GetHashCode(obj.B);
-            else if (obj.SS != null && obj.SS.Count > 0)
-                return CombineHashCodes(obj.SS.Select(s => s.GetHashCode()));
-            else if (obj.NS != null && obj.NS.Count > 0)
-                return CombineHashCodes(obj.NS.Select(n => n.GetHashCode()));
-            else if (obj.SS != null && obj.SS.Count > 0)
-                return CombineHashCodes(obj.BS.Select(MemoryStreamComparer.Default.GetHashCode));
-            else if (obj.IsLSet)
-                return CombineHashCodes(obj.L.Select(GetHashCode));
-            else if (obj.IsMSet)
-                return CombineHashCodes(obj.M.Select(entry => CombineHashCodes(entry.Key.GetHashCode(), GetHashCode(entry.Value))));
-        }
-        
-        return -1;
-    }
+            { NULL: true } => 0,
 
-    const int InitialHashCode = 13;
+            { IsBOOLSet: true } => obj.BOOL.GetHashCode(),
 
-    static int CombineHashCodes(int h1, int h2) => ((h1 << 5) + h1) ^ h2;
-    static int CombineHashCodes(IEnumerable<int> hashCodes) => hashCodes.Aggregate(InitialHashCode, CombineHashCodes);
+            { S: not null } => obj.S.GetHashCode(),
 
-    class MemoryStreamComparer : IEqualityComparer<MemoryStream>
-    {
-        public static MemoryStreamComparer Default { get; } = new MemoryStreamComparer();
+            { N: not null } => obj.N.GetHashCode(),
 
-        static ArraySegment<byte> BufferOf(MemoryStream obj) => 
-            obj.TryGetBuffer(out var xbuffer) 
-                ? xbuffer 
-                : new ArraySegment<byte>(obj.ToArray());
+            { B: not null } => MemoryStreamComparer.Default.GetHashCode(obj.B),
 
+            { SS.Count: > 0 } => obj.SS.SequenceCombinedHashCode(),
 
-        public bool Equals(MemoryStream x, MemoryStream y) =>
-            BufferOf(x).SequenceEqual(BufferOf(y));
+            { NS.Count: > 0 } => obj.NS.SequenceCombinedHashCode(),
 
-        public int GetHashCode(MemoryStream obj) =>
-            CombineHashCodes(BufferOf(obj).Select(b => b.GetHashCode()));
+            { BS.Count: > 0 } => obj.BS.SequenceCombinedHashCode(MemoryStreamComparer.Default),
+
+            { IsLSet: true } => obj.L.SequenceCombinedHashCode(this),
+
+            { IsMSet: true } => HashCode.Combine(obj.M.Keys.SequenceCombinedHashCode(), obj.M.Values.SequenceCombinedHashCode(this)),
+
+            _ => -1
+        };
     }
 }

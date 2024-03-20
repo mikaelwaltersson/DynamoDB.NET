@@ -1,8 +1,6 @@
-﻿using System;
+﻿namespace DynamoDB.Net.Model;
 
-namespace DynamoDB.Net.Model;
-
-[AttributeUsage(AttributeTargets.Property)]
+[AttributeUsage(AttributeTargets.Property | AttributeTargets.Field)]
 public sealed class VersionAttribute : Attribute
 {
 }

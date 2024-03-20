@@ -1,19 +1,10 @@
-﻿using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Linq;
+﻿using System.Collections;
 using System.Linq.Expressions;
-using System.Threading;
-using System.Threading.Tasks;
-
 using Amazon.DynamoDBv2;
 using Amazon.DynamoDBv2.Model;
 using Amazon.Runtime;
-
-using DynamoDB.Net.Exceptions;
 using DynamoDB.Net.Serialization;
 using DynamoDB.Net.Expressions;
-
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -21,12 +12,11 @@ namespace DynamoDB.Net;
 
 public class DynamoDBClient : IDynamoDBClient
 {
-    IAmazonDynamoDB client;
-    IOptions<DynamoDBClientOptions> options;
-    IDynamoDBItemEventHandler itemEvents;
-    ILogger<DynamoDBClient> logger;
-    IDynamoDBSerializer serializer;
-
+    readonly IAmazonDynamoDB client;
+    readonly IOptions<DynamoDBClientOptions> options;
+    readonly IDynamoDBItemEventHandler itemEvents;
+    readonly ILogger<DynamoDBClient> logger;
+    readonly IDynamoDBSerializer serializer;
 
     public DynamoDBClient(
         IAmazonDynamoDB client, 
@@ -38,12 +28,13 @@ public class DynamoDBClient : IDynamoDBClient
         ArgumentNullException.ThrowIfNull(client);
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(serializer);
+        ArgumentNullException.ThrowIfNull(itemEventHandlers);
         ArgumentNullException.ThrowIfNull(logger);
 
         this.client = client;
         this.options = options;
         this.serializer = serializer;
-        this.itemEvents = new DynamoDBItemEventHandlers(itemEventHandlers);
+        this.itemEvents = new CombinedDynamoDBItemEventHandlers([..itemEventHandlers]);
         this.logger = logger;
     }
 
@@ -57,19 +48,19 @@ public class DynamoDBClient : IDynamoDBClient
             : ReturnConsumedCapacity.NONE;
     
 
-    public Task<T> TryGetAsync<T>(
+    public Task<T?> TryGetAsync<T>(
         PrimaryKey<T> key,
         bool? consistentRead = false,
         CancellationToken cancellationToken = default) where T : class =>
-        GetAsync(key, consistentRead, cancellationToken, false);
+        GetAsync(key, consistentRead, cancellationToken, throwErrorIfNotExists: false);
 
     public Task<T> GetAsync<T>(
         PrimaryKey<T> key,
         bool? consistentRead = false,
         CancellationToken cancellationToken = default) where T : class =>
-        GetAsync(key, consistentRead, cancellationToken, true);
+        GetAsync(key, consistentRead, cancellationToken, throwErrorIfNotExists: true)!;
 
-    async Task<T> GetAsync<T>(
+    async Task<T?> GetAsync<T>(
         PrimaryKey<T> key,
         bool? consistendRead,
         CancellationToken cancellationToken,
@@ -80,7 +71,7 @@ public class DynamoDBClient : IDynamoDBClient
         var request =
             new GetItemRequest
             {
-                TableName = Model.TableDescription.GetTableName<T>(Options),
+                TableName = TableDescription.GetTableName<T>(Options),
                 Key = Serialize(key),
                 ConsistentRead = consistendRead ?? DefaultConsistentRead,
                 ReturnConsumedCapacity = LogConsumedCapacity
@@ -100,7 +91,7 @@ public class DynamoDBClient : IDynamoDBClient
 
     public async Task<T> PutAsync<T>(
         T item,
-        Expression<Func<T, bool>> condition = null,
+        Expression<Func<T, bool>>? condition = null,
         CancellationToken cancellationToken = default) where T : class
     {
         var operation = CreatePutOperation(item, condition);
@@ -108,7 +99,7 @@ public class DynamoDBClient : IDynamoDBClient
         var request =
             new PutItemRequest
             {
-                TableName = Model.TableDescription.GetTableName<T>(Options),
+                TableName = TableDescription.GetTableName<T>(Options),
                 Item = operation.Item,
                 ConditionExpression = operation.ConditionExpression,
                 ExpressionAttributeNames = operation.ExpressionAttributeNames,
@@ -125,8 +116,8 @@ public class DynamoDBClient : IDynamoDBClient
     public async Task<T> UpdateAsync<T>(
         PrimaryKey<T> key,
         Expression<Func<T, DynamoDBExpressions.UpdateAction>> update,
-        Expression<Func<T, bool>> condition = null,
-        object version = null,
+        Expression<Func<T, bool>>? condition = null,
+        object? version = null,
         CancellationToken cancellationToken = default) where T : class
     {
         var operation = CreateUpdateOperation(key, update, condition, version);
@@ -134,7 +125,7 @@ public class DynamoDBClient : IDynamoDBClient
         var request =
             new UpdateItemRequest
             {                    
-                TableName = Model.TableDescription.GetTableName<T>(Options),
+                TableName = TableDescription.GetTableName<T>(Options),
                 Key = Serialize(key),
                 UpdateExpression = operation.UpdateExpression,
                 ConditionExpression = operation.ConditionExpression,
@@ -151,8 +142,8 @@ public class DynamoDBClient : IDynamoDBClient
 
     public Task DeleteAsync<T>(
         PrimaryKey<T> key,
-        Expression<Func<T, bool>> condition = null,
-        object version = null,
+        Expression<Func<T, bool>>? condition = null,
+        object? version = null,
         CancellationToken cancellationToken = default) where T : class
     {
         var operation = CreateDeleteOperation(key, condition, version);
@@ -160,7 +151,7 @@ public class DynamoDBClient : IDynamoDBClient
         var request =
             new DeleteItemRequest
             {
-                TableName = Model.TableDescription.GetTableName<T>(Options),
+                TableName = TableDescription.GetTableName<T>(Options),
                 Key = Serialize(key),
                 ConditionExpression = operation.ConditionExpression,
                 ExpressionAttributeNames = operation.ExpressionAttributeNames,
@@ -173,21 +164,21 @@ public class DynamoDBClient : IDynamoDBClient
     }
 
     public async Task<IDynamoDBPartialResult<T>> ScanAsync<T>(
-        Expression<Func<T, bool>> filter = null,
+        Expression<Func<T, bool>>? filter = null,
         PrimaryKey<T> exclusiveStartKey = default,
         int? limit = null,
         bool? consistendRead = false,
-        (string, string) index = default,
+        (string?, string?) indexProperties = default,
         CancellationToken cancellationToken = default) where T : class
     {
-        var expressionTranslationContext = new ExpressionTranslationContext<T>(serializer, Options.SerializeFlags);
+        var expressionTranslationContext = new ExpressionTranslationContext(serializer);
 
         var request =
             new ScanRequest
             {
-                TableName = Model.TableDescription.GetTableName<T>(Options),
+                TableName = TableDescription.GetTableName<T>(Options),
                 ExclusiveStartKey = Serialize(exclusiveStartKey),
-                IndexName = index.GetIndexName(expressionTranslationContext),
+                IndexName = indexProperties.GetIndexName<T>(),
                 FilterExpression = filter?.Translate(expressionTranslationContext),
                 ExpressionAttributeNames = expressionTranslationContext.AttributeNames,
                 ExpressionAttributeValues = expressionTranslationContext.AttributeValues,   
@@ -208,27 +199,27 @@ public class DynamoDBClient : IDynamoDBClient
 
     public async Task<IDynamoDBPartialResult<T>> QueryAsync<T>(
         Expression<Func<T, bool>> keyCondition,
-        Expression<Func<T, bool>> filter = null,
+        Expression<Func<T, bool>>? filter = null,
         PrimaryKey<T> exclusiveStartKey = default,
         bool? scanIndexForward = null,
         int? limit = null,
         bool? consistentRead = false,
-        (string, string) index = default,
+        (string?, string?) indexProperties = default,
         CancellationToken cancellationToken = default) where T : class
     {
         ArgumentNullException.ThrowIfNull(keyCondition);
 
-        var expressionTranslationContext = new ExpressionTranslationContext<T>(serializer, Options.SerializeFlags);
+        var expressionTranslationContext = new ExpressionTranslationContext(serializer);
 
         var request =
             new QueryRequest
             {
-                TableName = Model.TableDescription.GetTableName<T>(Options),
+                TableName = TableDescription.GetTableName<T>(Options),
                 ExclusiveStartKey = Serialize(exclusiveStartKey),
                 KeyConditionExpression = keyCondition.Translate(expressionTranslationContext),
-                IndexName = index != default 
-                    ? index.GetIndexName(expressionTranslationContext) 
-                    : keyCondition.GetIndexName(expressionTranslationContext),
+                IndexName = indexProperties != default 
+                    ? indexProperties.GetIndexName<T>() 
+                    : keyCondition.GetIndexName(),
                 FilterExpression = filter?.Translate(expressionTranslationContext),
                 ExpressionAttributeNames = expressionTranslationContext.AttributeNames,
                 ExpressionAttributeValues = expressionTranslationContext.AttributeValues,  
@@ -254,21 +245,21 @@ public class DynamoDBClient : IDynamoDBClient
 
     Put CreatePutOperation<T>(
         T item,
-        Expression<Func<T, bool>> condition = null) where T : class
+        Expression<Func<T, bool>>? condition = null) where T : class
     {
         ArgumentNullException.ThrowIfNull(item);
 
-        var expressionTranslationContext = new ExpressionTranslationContext<T>(serializer, Options.SerializeFlags);
+        var expressionTranslationContext = new ExpressionTranslationContext(serializer);
         
-        var version = Model.TableDescription.PropertyAccessors<T>.GetVersion?.Invoke(item);
+        var version = TableDescription.PropertyAccessors<T>.GetVersion?.Invoke(item);
 
-        var serializedItem = itemEvents.OnItemSerialized(Serialize(item), expressionTranslationContext);
-        var translatedItemCondition = itemEvents.OnItemConditionTranslated(condition?.Translate(expressionTranslationContext), version, expressionTranslationContext);
+        var serializedItem = itemEvents.OnItemSerialized<T>(Serialize(item), expressionTranslationContext);
+        var translatedItemCondition = itemEvents.OnItemConditionTranslated<T>(condition?.Translate(expressionTranslationContext), version, expressionTranslationContext);
 
         return
             new Put
             {
-                TableName = Model.TableDescription.GetTableName<T>(Options),
+                TableName = TableDescription.GetTableName<T>(Options),
                 Item = serializedItem,
                 ConditionExpression = translatedItemCondition,
                 ExpressionAttributeNames = expressionTranslationContext.AttributeNames,
@@ -279,22 +270,22 @@ public class DynamoDBClient : IDynamoDBClient
     Update CreateUpdateOperation<T>(
         PrimaryKey<T> key,
         Expression<Func<T, DynamoDBExpressions.UpdateAction>> update,
-        Expression<Func<T, bool>> condition = null,
-        object version = null) where T : class
+        Expression<Func<T, bool>>? condition = null,
+        object? version = null) where T : class
     {
 
         ArgumentOutOfRangeException.ThrowIfEqual(key, default);
         ArgumentNullException.ThrowIfNull(update);
 
-        var expressionTranslationContext = new ExpressionTranslationContext<T>(serializer, Options.SerializeFlags);
+        var expressionTranslationContext = new ExpressionTranslationContext(serializer);
 
-        var translatedItemUpdate = itemEvents.OnItemUpdateTranslated(update.Translate(expressionTranslationContext), version, expressionTranslationContext);
-        var translatedItemCondition = itemEvents.OnItemConditionTranslated(condition?.Translate(expressionTranslationContext), version, expressionTranslationContext);
+        var translatedItemUpdate = itemEvents.OnItemUpdateTranslated<T>(update.Translate(expressionTranslationContext), version, expressionTranslationContext);
+        var translatedItemCondition = itemEvents.OnItemConditionTranslated<T>(condition?.Translate(expressionTranslationContext), version, expressionTranslationContext);
 
         return 
             new Update
             {
-                TableName = Model.TableDescription.GetTableName<T>(Options),
+                TableName = TableDescription.GetTableName<T>(Options),
                 Key = Serialize(key),
                 UpdateExpression = translatedItemUpdate,
                 ConditionExpression = translatedItemCondition,
@@ -305,19 +296,19 @@ public class DynamoDBClient : IDynamoDBClient
 
     Delete CreateDeleteOperation<T>(
         PrimaryKey<T> key,
-        Expression<Func<T, bool>> condition = null,
-        object version = null) where T : class
+        Expression<Func<T, bool>>? condition = null,
+        object? version = null) where T : class
     {
         ArgumentOutOfRangeException.ThrowIfEqual(key, default);
 
-        var expressionTranslationContext = new ExpressionTranslationContext<T>(serializer, Options.SerializeFlags);
+        var expressionTranslationContext = new ExpressionTranslationContext(serializer);
 
-        var translatedItemCondition = itemEvents.OnItemConditionTranslated(condition?.Translate(expressionTranslationContext), version, expressionTranslationContext);
+        var translatedItemCondition = itemEvents.OnItemConditionTranslated<T>(condition?.Translate(expressionTranslationContext), version, expressionTranslationContext);
 
         return
             new Delete
             {
-                TableName = Model.TableDescription.GetTableName<T>(Options),
+                TableName = TableDescription.GetTableName<T>(Options),
                 Key = Serialize(key),
                 ConditionExpression = translatedItemCondition,
                 ExpressionAttributeNames = expressionTranslationContext.AttributeNames,
@@ -328,18 +319,18 @@ public class DynamoDBClient : IDynamoDBClient
     ConditionCheck CreateConditionCheckOperation<T>(
         PrimaryKey<T> key, 
         Expression<Func<T, bool>> condition, 
-        object version = null) where T : class
+        object? version = null) where T : class
     {
         ArgumentOutOfRangeException.ThrowIfEqual(key, default);
 
-        var expressionTranslationContext = new ExpressionTranslationContext<T>(serializer, Options.SerializeFlags);
+        var expressionTranslationContext = new ExpressionTranslationContext(serializer);
 
-        var translatedItemCondition = itemEvents.OnItemConditionTranslated(condition?.Translate(expressionTranslationContext), version, expressionTranslationContext);
+        var translatedItemCondition = itemEvents.OnItemConditionTranslated<T>(condition?.Translate(expressionTranslationContext), version, expressionTranslationContext);
 
         return 
             new ConditionCheck
             {
-                TableName = Model.TableDescription.GetTableName<T>(Options),
+                TableName = TableDescription.GetTableName<T>(Options),
                 Key = Serialize(key),
                 ConditionExpression = translatedItemCondition,
                 ExpressionAttributeNames = expressionTranslationContext.AttributeNames,
@@ -348,10 +339,10 @@ public class DynamoDBClient : IDynamoDBClient
     }
 
     Dictionary<string, AttributeValue> Serialize<T>(T itemOrKeys) => 
-        serializer.SerializeDynamoDBValue(itemOrKeys, Options.SerializeFlags).EnsureIsMSet().M;
+        serializer.SerializeDynamoDBValue(itemOrKeys).EnsureIsMSet().M;
 
     T Deserialize<T>(Dictionary<string, AttributeValue> attributes) =>
-        serializer.DeserializeDynamoDBValue<T>(new AttributeValue { M = attributes, IsMSet = true });
+        serializer.DeserializeDynamoDBValue<T>(new AttributeValue { M = attributes, IsMSet = true })!;
 
     T DeserializeItem<T>(Dictionary<string, AttributeValue> attributes) where T : class =>
         itemEvents.OnItemDeserialized(Deserialize<T>(attributes));
@@ -377,8 +368,8 @@ public class DynamoDBClient : IDynamoDBClient
         }
         catch (AmazonDynamoDBException ex)
         {
-            if (!(ex is ConditionalCheckFailedException))
-                logger.InvokeFailed(ex);
+            if (ex is not ConditionalCheckFailedException)
+                logger.InvokeFailed(ex, ex.ErrorCode);
                 
             throw;
         }
@@ -419,16 +410,16 @@ public class DynamoDBClient : IDynamoDBClient
             this.transactItems = new List<TransactWriteItem>();
         }
 
-        public void Put<T>(T item, Expression<Func<T, bool>> condition = null) where T : class =>
+        public void Put<T>(T item, Expression<Func<T, bool>>? condition = null) where T : class =>
             Add(new TransactWriteItem { Put = this.dynamoDBClient.CreatePutOperation(item, condition) });
 
-        public void Update<T>(PrimaryKey<T> key, Expression<Func<T, DynamoDBExpressions.UpdateAction>> update, Expression<Func<T, bool>> condition = null, object version = null) where T : class =>
+        public void Update<T>(PrimaryKey<T> key, Expression<Func<T, DynamoDBExpressions.UpdateAction>> update, Expression<Func<T, bool>>? condition = null, object? version = null) where T : class =>
             Add(new TransactWriteItem { Update = this.dynamoDBClient.CreateUpdateOperation(key, update, condition, version) });
 
-        public void Delete<T>(PrimaryKey<T> key, Expression<Func<T, bool>> condition = null, object version = null) where T : class =>
+        public void Delete<T>(PrimaryKey<T> key, Expression<Func<T, bool>>? condition = null, object? version = null) where T : class =>
             Add(new TransactWriteItem { Delete = this.dynamoDBClient.CreateDeleteOperation(key, condition, version) });
 
-        public void ConditionCheck<T>(PrimaryKey<T> key, Expression<Func<T, bool>> condition, object version = null) where T : class =>
+        public void ConditionCheck<T>(PrimaryKey<T> key, Expression<Func<T, bool>> condition, object? version = null) where T : class =>
             Add(new TransactWriteItem { ConditionCheck = this.dynamoDBClient.CreateConditionCheckOperation(key, condition, version) });
 
         public async Task CommitAsync(CancellationToken cancellationToken = default)
@@ -459,5 +450,20 @@ public class DynamoDBClient : IDynamoDBClient
             if (this.isCommitted)
                 throw new InvalidOperationException("Transaction already committed");
         }
+    }
+
+    class CombinedDynamoDBItemEventHandlers(IEnumerable<IDynamoDBItemEventHandler> itemEventHandlers) : IDynamoDBItemEventHandler
+    {
+        T IDynamoDBItemEventHandler.OnItemDeserialized<T>(T item) => 
+            itemEventHandlers.Aggregate(item, (value, handler) => handler.OnItemDeserialized(value));
+
+        Dictionary<string, AttributeValue> IDynamoDBItemEventHandler.OnItemSerialized<T>(Dictionary<string, AttributeValue> item, ExpressionTranslationContext translationContext) =>
+            itemEventHandlers.Aggregate(item, (value, handler) => handler.OnItemSerialized<T>(value, translationContext));
+
+        string IDynamoDBItemEventHandler.OnItemUpdateTranslated<T>(string expression, object? version, ExpressionTranslationContext translationContext) =>
+            itemEventHandlers.Aggregate(expression, (value, handler) => handler.OnItemUpdateTranslated<T>(value, version, translationContext));
+
+        string? IDynamoDBItemEventHandler.OnItemConditionTranslated<T>(string? expression, object? version, ExpressionTranslationContext translationContext) =>
+            itemEventHandlers.Aggregate(expression, (value, handler) => handler.OnItemConditionTranslated<T>(value, version, translationContext));
     }
 }

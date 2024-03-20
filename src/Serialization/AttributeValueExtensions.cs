@@ -2,27 +2,27 @@ using Amazon.DynamoDBv2.Model;
 
 namespace DynamoDB.Net.Serialization;
 
-static class AttributeValueExtensions
+public static class AttributeValueExtensions
 {
     public static bool IsEmpty(this AttributeValue value) =>
-        value.B == null &&
-        !value.IsBOOLSet &&
-        (value.BS == null || value.BS.Count == 0) &&
-        !value.IsLSet &&
-        !value.IsMSet &&
-        value.N == null &&
-        (value.NS == null || value.NS.Count == 0) &&
-        !value.NULL &&
-        value.S == null &&
-        (value.SS == null || value.SS.Count == 0);
+        value is 
+        { 
+            NULL: false, 
+            IsBOOLSet: false, 
+            S: null, 
+            N: null, 
+            B: null, 
+            SS.Count: 0, 
+            NS.Count: 0,
+            BS.Count: 0,
+            IsLSet: false,
+            IsMSet: false 
+        };
 
+    public static bool IsEmptyOrNull(this AttributeValue value) =>
+        value.NULL || value.IsEmpty();
 
-    public static AttributeValue EmptyAsNull(this AttributeValue value) =>
-        value.IsEmpty()
-        ? new AttributeValue { NULL = true }
-        : value;
-
-    public static AttributeValue EnsureIsMSet(this AttributeValue value) =>
+    internal static AttributeValue EnsureIsMSet(this AttributeValue value) =>
         !value.IsMSet
         ? new AttributeValue { IsMSet = true } 
         : value;

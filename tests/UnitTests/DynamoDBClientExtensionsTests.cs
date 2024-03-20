@@ -1,20 +1,12 @@
 
 using System.Linq.Expressions;
 using DynamoDB.Net.Model;
-using DynamoDB.Net.Serialization.Newtonsoft.Json;
 
 namespace DynamoDB.Net.Tests.UnitTests;
 
 public class DynamoDBClientExtensionsTests
 {
-    static DynamoDBClientExtensionsTests()
-    {
-#pragma warning disable CA1806
-        new JsonContractResolver(); // TODO: remove once TypeContractResolver.Default is populated by default
-#pragma warning restore CA1806
-    }
-
-    Client client = new Client();
+    TestClient client = new();
 
     [Fact]
     public async void CanGetAsync()
@@ -65,7 +57,7 @@ public class DynamoDBClientExtensionsTests
         client.Items.Add((item2), item2);
         client.Items.Add((item3), item3);
 
-        var actual = await DynamoDBClientExtensions.ScanAsync(client, typeof (Item));
+        var actual = await DynamoDBClientExtensions.ScanAsync(client, typeof(Item));
 
         Assert.Equal([item1, item2, item3], actual);
     }
@@ -86,8 +78,8 @@ public class DynamoDBClientExtensionsTests
         client.Items.Add((item4), item4);
 
         var actual1 = await DynamoDBClientExtensions.ScanRemainingAsync<Item>(client);
-        var actual2 = await DynamoDBClientExtensions.ScanRemainingAsync(client, typeof (Item));
-        var actual3 = await DynamoDBClientExtensions.ScanRemainingAsync(client, typeof (Item), limit: 3);
+        var actual2 = await DynamoDBClientExtensions.ScanRemainingAsync(client, typeof(Item));
+        var actual3 = await DynamoDBClientExtensions.ScanRemainingAsync(client, typeof(Item), limit: 3);
 
         Assert.Equal([item1, item2, item3, item4], actual1);
         Assert.Equal([item1, item2, item3, item4], actual2);
@@ -126,9 +118,9 @@ public class DynamoDBClientExtensionsTests
         public int Order { get; set; }
     }
 
-    class Client : IDynamoDBClient
+    class TestClient : IDynamoDBClient
     {
-        public Dictionary<object, object> Items { get; } = new Dictionary<object, object>();
+        public Dictionary<object, object> Items { get; } = [];
         public int MaxPageSize { get; set; } = int.MaxValue;
 
         public Task<T> GetAsync<T>(
@@ -169,7 +161,7 @@ public class DynamoDBClientExtensionsTests
             PrimaryKey<T> exclusiveStartKey = default, 
             int? limit = null,
             bool? consistentRead = false,
-            (string, string) index = default,
+            (string?, string?) indexProperties = default,
             CancellationToken cancellationToken = default) where T : class =>
             QueryAsync(_ => true, exclusiveStartKey, limit);
 
@@ -180,7 +172,7 @@ public class DynamoDBClientExtensionsTests
             bool? scanIndexForward = null,
             int? limit = null,
             bool? consistentRead = false,
-            (string, string) index = default,
+            (string?, string?) indexProperties = default,
             CancellationToken cancellationToken = default) where T : class =>
             QueryAsync(keyCondition.Compile(), exclusiveStartKey, limit);
 

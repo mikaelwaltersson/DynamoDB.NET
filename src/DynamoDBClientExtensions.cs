@@ -1,10 +1,6 @@
-﻿using System;
-using System.Collections;
+﻿using System.Collections;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.Linq.Expressions;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace DynamoDB.Net;
 
@@ -17,7 +13,7 @@ public static class DynamoDBClientExtensions
         CancellationToken cancellationToken = default) =>
         ItemOperationsForKeyType(key).GetAsync(client, key, consistentRead, cancellationToken);
 
-    public static Task<object> TryGetAsync(
+    public static Task<object?> TryGetAsync(
         this IDynamoDBClient client,
         IPrimaryKey key,
         bool? consistentRead = false,
@@ -28,13 +24,13 @@ public static class DynamoDBClientExtensions
         this IDynamoDBClient client,
         object item,
         CancellationToken cancellationToken = default) =>
-        ItemOperationsForEntityType(item?.GetType()).PutAsync(client, item, cancellationToken);
+        ItemOperationsForEntityType(item.GetType()).PutAsync(client, item, cancellationToken);
 
 
     public static Task<IDynamoDBPartialResult> ScanAsync(
         this IDynamoDBClient client,
         Type entityType,
-        IPrimaryKey exclusiveStartKey = null, 
+        IPrimaryKey? exclusiveStartKey = null, 
         int? limit = null,
         bool consistentRead = false,
         CancellationToken cancellationToken = default) =>
@@ -42,22 +38,22 @@ public static class DynamoDBClientExtensions
 
     public static Task<IReadOnlyList<T>> ScanRemainingAsync<T>(
         this IDynamoDBClient client,
-        Expression<Func<T, bool>> filter = null, 
+        Expression<Func<T, bool>>? filter = null, 
         PrimaryKey<T> exclusiveStartKey = default, 
         int? limit = null,
         bool consistentRead = false,
-        (string, string) index = default,
+        (string?, string?) indexProperties = default,
         CancellationToken cancellationToken = default) where T : class =>
         RemainingAsync(
             new List<T>(),
             exclusiveStartKey, 
             limit,
-            (lastEvaluatedKey, remainingLimit) => client.ScanAsync(filter, lastEvaluatedKey, remainingLimit, consistentRead, index, cancellationToken));
+            (lastEvaluatedKey, remainingLimit) => client.ScanAsync(filter, lastEvaluatedKey, remainingLimit, consistentRead, indexProperties, cancellationToken));
 
     public static Task<IReadOnlyList<object>> ScanRemainingAsync(
         this IDynamoDBClient client,
         Type entityType,
-        IPrimaryKey exclusiveStartKey = null, 
+        IPrimaryKey? exclusiveStartKey = null, 
         int? limit = null,
         bool consistentRead = false,
         CancellationToken cancellationToken = default) =>
@@ -70,21 +66,24 @@ public static class DynamoDBClientExtensions
     public static Task<IReadOnlyList<T>> QueryRemainingAsync<T>(
         this IDynamoDBClient client,
         Expression<Func<T, bool>> keyCondition,
-        Expression<Func<T, bool>> filter = null, 
+        Expression<Func<T, bool>>? filter = null, 
         PrimaryKey<T> exclusiveStartKey = default, 
         bool? scanIndexForward = null,
         int? limit = null,
         bool? consistentRead = false,
-        (string, string) index = default,
+        (string?, string?) indexProperties = default,
         CancellationToken cancellationToken = default) where T : class =>
         RemainingAsync(
             new List<T>(),
             exclusiveStartKey, 
             limit,
-            (lastEvaluatedKey, remainingLimit) => client.QueryAsync(keyCondition, filter, lastEvaluatedKey, scanIndexForward, remainingLimit, consistentRead, index, cancellationToken));
+            (lastEvaluatedKey, remainingLimit) => client.QueryAsync(keyCondition, filter, lastEvaluatedKey, scanIndexForward, remainingLimit, consistentRead, indexProperties, cancellationToken));
 
 
-    async static Task<IReadOnlyList<T>> RemainingAsync<T, TKey, TPartialResult>(List<T> result, TKey exclusiveStartKey, int? limit, Func<TKey, int?, Task<TPartialResult>> next) where T : class where TPartialResult : IDynamoDBPartialResult<T, TKey>
+    async static Task<IReadOnlyList<T>> RemainingAsync<T, TKey, TPartialResult>(List<T> result, TKey? exclusiveStartKey, int? limit, Func<TKey?, int?, Task<TPartialResult>> next) 
+        where T : class
+        where TKey : IPrimaryKey
+        where TPartialResult : IDynamoDBPartialResult<T, TKey>
     {
         var lastEvaluatedKey = exclusiveStartKey;
 
@@ -102,7 +101,7 @@ public static class DynamoDBClientExtensions
                     break;
             }
         }
-        while (!lastEvaluatedKey.Equals(null));
+        while (lastEvaluatedKey.PartitionKey != null);
 
         return result;
     }
@@ -111,16 +110,15 @@ public static class DynamoDBClientExtensions
 
     static readonly ConcurrentDictionary<Type, IItemOperations> itemOperations = [];
 
-    static IItemOperations ItemOperationsForKeyType(object key) =>
+    static IItemOperations ItemOperationsForKeyType(IPrimaryKey key) =>
         itemOperations.GetOrAdd(
-            key?.GetType(), 
+            key.GetType(), 
             static type =>
             {
-                var underlyingType = 
-                    PrimaryKey.GetUnderlyingType(type) ?? 
+                if (!PrimaryKey.IsPrimaryKeyType(type, out var itemType))
                     throw new ArgumentOutOfRangeException(nameof(key));
 
-                return (IItemOperations)Activator.CreateInstance(typeof(ItemOperations<>).MakeGenericType(underlyingType));
+                return (IItemOperations)Serialization.Activator.CreateInstance(typeof(ItemOperations<>).MakeGenericType(itemType));
             });
 
     static IItemOperations ItemOperationsForEntityType(Type entityType) =>
@@ -131,16 +129,19 @@ public static class DynamoDBClientExtensions
                 if (type == null)
                     throw new ArgumentOutOfRangeException(nameof(entityType));
 
-                return (IItemOperations)Activator.CreateInstance(typeof(ItemOperations<>).MakeGenericType(type));
+                return (IItemOperations)Serialization.Activator.CreateInstance(typeof(ItemOperations<>).MakeGenericType(type));
             });
 
 
     interface IItemOperations
     {
         Task<object> GetAsync(IDynamoDBClient client, IPrimaryKey key, bool? consistentRead, CancellationToken cancellationToken);
-        Task<object> TryGetAsync(IDynamoDBClient client, IPrimaryKey key, bool? consistentRead, CancellationToken cancellationToken);
+       
+        Task<object?> TryGetAsync(IDynamoDBClient client, IPrimaryKey key, bool? consistentRead, CancellationToken cancellationToken);
+        
         Task<object> PutAsync(IDynamoDBClient client, object item, CancellationToken cancellationToken);
-        Task<IDynamoDBPartialResult> ScanAsync(IDynamoDBClient client, IPrimaryKey exclusiveStartKey, int? limit, bool? consistentRead, CancellationToken cancellationToken);
+        
+        Task<IDynamoDBPartialResult> ScanAsync(IDynamoDBClient client, IPrimaryKey? exclusiveStartKey, int? limit, bool? consistentRead, CancellationToken cancellationToken);
     }
 
     class ItemOperations<T> : IItemOperations where T : class
@@ -148,13 +149,13 @@ public static class DynamoDBClientExtensions
         public async Task<object> GetAsync(IDynamoDBClient client, IPrimaryKey key, bool? consistentRead, CancellationToken cancellationToken) =>
             await client.GetAsync((PrimaryKey<T>)key, consistentRead, cancellationToken);
 
-        public async Task<object> TryGetAsync(IDynamoDBClient client, IPrimaryKey key, bool? consistentRead, CancellationToken cancellationToken) =>
+        public async Task<object?> TryGetAsync(IDynamoDBClient client, IPrimaryKey key, bool? consistentRead, CancellationToken cancellationToken) =>
             await client.TryGetAsync((PrimaryKey<T>)key, consistentRead, cancellationToken);
 
         public async Task<object> PutAsync(IDynamoDBClient client, object item, CancellationToken cancellationToken) =>
-            await client.PutAsync((T)item, (Expression<Func<T, bool>>)null, cancellationToken);
+            await client.PutAsync((T)item, (Expression<Func<T, bool>>?)null, cancellationToken);
 
-        public async Task<IDynamoDBPartialResult> ScanAsync(IDynamoDBClient client, IPrimaryKey exclusiveStartKey, int? limit, bool? consistentRead, CancellationToken cancellationToken) =>
+        public async Task<IDynamoDBPartialResult> ScanAsync(IDynamoDBClient client, IPrimaryKey? exclusiveStartKey, int? limit, bool? consistentRead, CancellationToken cancellationToken) =>
             new DynamoDBPartialResult(await client.ScanAsync(null, ((PrimaryKey<T>?)exclusiveStartKey).GetValueOrDefault(), limit, consistentRead, (null, null), cancellationToken));
 
         class DynamoDBPartialResult : IDynamoDBPartialResult

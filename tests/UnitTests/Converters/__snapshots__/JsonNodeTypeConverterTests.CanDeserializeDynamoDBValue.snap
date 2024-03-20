@@ -1,0 +1,14 @@
+﻿{
+  "foo": [
+    null,
+    false,
+    true,
+    1,
+    "2",
+    [
+      "3",
+      "4"
+    ]
+  ],
+  "bar": "SGVsbG9Xb3JsZA=="
+}

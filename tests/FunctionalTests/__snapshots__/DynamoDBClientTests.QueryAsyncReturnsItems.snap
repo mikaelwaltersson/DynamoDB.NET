@@ -1,0 +1,72 @@
+﻿{
+  "items": [
+    {
+      "UserId": "d98e04ab-7920-4296-a0de-000000000002",
+      "Timestamp": "2022-10-18T16:03:00+00:00",
+      "LinkedPostIds": [
+        "bc91a88b-e98c-4da7-85b0-000000000003",
+        "59e6b58d-6678-4a71-b14b-000000000003"
+      ],
+      "Content": null,
+      "Priority": 1,
+      "Tags": [
+        "data",
+        "test"
+      ],
+      "ExternalId": "ID_3",
+      "Version": 1
+    },
+    {
+      "UserId": "d98e04ab-7920-4296-a0de-000000000002",
+      "Timestamp": "2022-10-18T16:04:00+00:00",
+      "LinkedPostIds": [
+        "bc91a88b-e98c-4da7-85b0-000000000004",
+        "59e6b58d-6678-4a71-b14b-000000000004"
+      ],
+      "Content": null,
+      "Priority": 2,
+      "Tags": [
+        "data",
+        "test"
+      ],
+      "ExternalId": "ID_4",
+      "Version": 1
+    }
+  ],
+  "itemsByGlobalSecondaryIndex": [
+    {
+      "UserId": "d98e04ab-7920-4296-a0de-000000000002",
+      "Timestamp": "2022-10-18T16:03:00+00:00",
+      "LinkedPostIds": [
+        "bc91a88b-e98c-4da7-85b0-000000000003",
+        "59e6b58d-6678-4a71-b14b-000000000003"
+      ],
+      "Content": null,
+      "Priority": 1,
+      "Tags": [
+        "data",
+        "test"
+      ],
+      "ExternalId": "ID_3",
+      "Version": 1
+    }
+  ],
+  "itemsByLocalSecondaryIndex": [
+    {
+      "UserId": "d98e04ab-7920-4296-a0de-000000000001",
+      "Timestamp": "2022-10-18T16:02:00+00:00",
+      "LinkedPostIds": [
+        "bc91a88b-e98c-4da7-85b0-000000000002",
+        "59e6b58d-6678-4a71-b14b-000000000002"
+      ],
+      "Content": null,
+      "Priority": 2,
+      "Tags": [
+        "data",
+        "test"
+      ],
+      "ExternalId": "ID_2",
+      "Version": 1
+    }
+  ]
+}

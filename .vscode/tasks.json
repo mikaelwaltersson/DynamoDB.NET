@@ -8,7 +8,6 @@
             "args": [
                 "test",
                 "${workspaceFolder}/tests/DynamoDB.Net.Tests.csproj",
-                "--logger:\"console;verbosity=detailed\"",
                 "/p:CollectCoverage=true",
                 "/p:CoverletOutputFormat=cobertura",
                 "/p:CoverletOutput=.coverage/cobertura.xml"
@@ -22,7 +21,8 @@
             "args": [
                 "-reporttypes:Html",
                 "-reports:${workspaceFolder}/tests/.coverage/cobertura.xml",
-                "-targetdir:${workspaceFolder}/tests/.coverage"
+                "-targetdir:${workspaceFolder}/tests/.coverage",
+                "-filefilters:-*.g.cs"
             ],
             "problemMatcher": "$msCompile",
         }
