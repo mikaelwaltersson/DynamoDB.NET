@@ -3,7 +3,6 @@ using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
-using System.Linq;
 using System.Reflection;
 using Amazon.DynamoDBv2.Model;
 using DynamoDB.Net.Serialization.Newtonsoft.Json.Converters;
@@ -34,13 +33,13 @@ public class JsonDynamoDBSerializer : IDynamoDBSerializer
         return serializer.Deserialize(new DynamoDBJsonReader(value), objectType);
     }
 
-    public AttributeValue SerializeDynamoDBValue(object value, Type objectType, SerializeDynamoDBValueFlags flags = 0)
+    public AttributeValue SerializeDynamoDBValue(object value, Type objectType, SerializeDynamoDBValueTarget target = default)
     {
-        var attributeValue = new AttributeValue();
+        using var writer = new DynamoDBJsonWriter(target, serializer.NullValueHandling);
 
-        serializer.Serialize(new DynamoDBJsonWriter(attributeValue, flags), value, objectType);
+        serializer.Serialize(writer, value, objectType);
 
-        return attributeValue;
+        return writer.Result;
     }
 
     public string GetSerializedPropertyName(MemberInfo property) =>

@@ -62,7 +62,7 @@ public class TableDescription
             type.GetCustomAttribute<TableAttribute>(inherit: true) ?? 
             throw new InvalidOperationException($"Type {type.Name} is missing a Table attribute");
 
-        var tableName = tableAttribute.Name ?? type.Name.ToHyphenCasing().NaivelyPluralized();
+        var tableName = tableAttribute.TableName ?? type.Name.ToHyphenCasing().NaivelyPluralized();
         
         return ApplyTableNamePrefixAndMapping(options, tableName);
     }
@@ -73,7 +73,7 @@ public class TableDescription
 
         var partitionKeyAttributes =
             partitionKey.GetCustomAttributes<PartitionKeyAttribute>().
-                OrderBy(attribute => attribute.Type).
+                OrderBy(attribute => attribute.IndexType).
                 ThenBy(attribute => attribute.Ordinal).
                 ToArray();
 
@@ -84,7 +84,7 @@ public class TableDescription
 
         if (sortKey == null)
         {
-            switch (partitionKeyAttributes[0].Type)
+            switch (partitionKeyAttributes[0].IndexType)
             {
                 case IndexType.PrimaryKey:
                     return null;
@@ -96,7 +96,7 @@ public class TableDescription
 
         var sortKeyAttributes =
             sortKey.GetCustomAttributes<SortKeyAttribute>().
-                OrderBy(attribute => attribute.Type).
+                OrderBy(attribute => attribute.IndexType).
                 ThenBy(attribute => attribute.Ordinal).
                 ToArray();
 
@@ -111,13 +111,13 @@ public class TableDescription
                 Array.FindIndex(
                     sortKeyAttributes,
                     attribute =>
-                        (partitionKeyAttributes[i].Type == IndexType.PrimaryKey
-                            ? (attribute.Type == IndexType.PrimaryKey || attribute.Type == IndexType.LocalSecondaryIndex)
-                            : (attribute.Type == IndexType.GlobalSecondaryIndex && attribute.Ordinal == partitionKeyAttributes[i].Ordinal)));
+                        (partitionKeyAttributes[i].IndexType == IndexType.PrimaryKey
+                            ? (attribute.IndexType == IndexType.PrimaryKey || attribute.IndexType == IndexType.LocalSecondaryIndex)
+                            : (attribute.IndexType == IndexType.GlobalSecondaryIndex && attribute.Ordinal == partitionKeyAttributes[i].Ordinal)));
 
             if (j >= 0)
             {
-                switch (sortKeyAttributes[j].Type)
+                switch (sortKeyAttributes[j].IndexType)
                 {
                     case IndexType.PrimaryKey:
                         return null;
@@ -171,22 +171,22 @@ public class TableDescription
         type switch
         {
             IndexType.LocalSecondaryIndex => 
-                Enumerable.Range(0, Base.IndexKeyAttributeBase.MaxNumberOfLocalSecondaryIndexes),
+                Enumerable.Range(0, IndexKeyAttribute.MaxNumberOfLocalSecondaryIndexes),
             
             IndexType.GlobalSecondaryIndex => 
-                Enumerable.Range(0, Base.IndexKeyAttributeBase.MaxNumberOfGlobalSecondaryIndexes),
+                Enumerable.Range(0, IndexKeyAttribute.MaxNumberOfGlobalSecondaryIndexes),
             
             _ => [],
         };
 
-    static string GetPropertyIndexAttributeName<TAttribute>(MemberInfo property, IndexType indexType, int ordinal) where TAttribute : Base.IndexKeyAttributeBase =>
-        property.GetCustomAttributes<TAttribute>().FirstOrDefault(a => a.Type == indexType && a.Ordinal == ordinal)?.Name;
+    static string GetPropertyIndexAttributeName<TAttribute>(MemberInfo property, IndexType indexType, int ordinal) where TAttribute : IndexKeyAttribute =>
+        property.GetCustomAttributes<TAttribute>().FirstOrDefault(a => a.IndexType == indexType && a.Ordinal == ordinal)?.IndexName;
 
-    static MemberInfo GetIndexKeyProperty<TAttribute>(Type type, IndexType indexType = IndexType.PrimaryKey, int ordinal = 0, bool required = false) where TAttribute : Base.IndexKeyAttributeBase
+    static MemberInfo GetIndexKeyProperty<TAttribute>(Type type, IndexType indexType = IndexType.PrimaryKey, int ordinal = 0, bool required = false) where TAttribute : IndexKeyAttribute
     {
         var properties =
             type.GetSerializablePropertiesAndFields().
-                Where(p => p.GetCustomAttributes<TAttribute>().Any(a => a.Type == indexType && a.Ordinal == ordinal)).
+                Where(p => p.GetCustomAttributes<TAttribute>().Any(a => a.IndexType == indexType && a.Ordinal == ordinal)).
                 ToArray();
 
         var attributeDescription = typeof(TAttribute).Name;
@@ -202,7 +202,7 @@ public class TableDescription
             type.GetSerializablePropertiesAndFields().Where(property => property.HasCustomAttribute<VersionAttribute>()).ToArray(), 
             typeof(Version).Name);
 
-    static MemberInfo[] GetSecondaryIndexKeyProperties<TAttribute>(Type type, IndexType indexType) where TAttribute : Base.IndexKeyAttributeBase =>
+    static MemberInfo[] GetSecondaryIndexKeyProperties<TAttribute>(Type type, IndexType indexType) where TAttribute : IndexKeyAttribute =>
         GetIndexOrdinals(indexType).Select(ordinal => GetIndexKeyProperty<TAttribute>(type, indexType, ordinal)).ToArray();
 
     static MemberInfo ValidSingleResolvedPropertyResult(Type type, MemberInfo[] properties, string attributeDescription, bool required = false)

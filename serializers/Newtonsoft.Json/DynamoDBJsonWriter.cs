@@ -10,35 +10,31 @@ namespace DynamoDB.Net.Serialization.Newtonsoft.Json;
 
 public class DynamoDBJsonWriter : JsonWriter
 {
-    Stack<StackEntry> stack = new Stack<StackEntry>();
-    SerializeDynamoDBValueFlags flags;
+    AttributeValue result;
+    Stack<StackEntry> stack = [];
+    SerializeDynamoDBValueTarget target;
+    NullValueHandling nullValueHandling;
 
-    public DynamoDBJsonWriter(AttributeValue target, SerializeDynamoDBValueFlags flags)
+    public DynamoDBJsonWriter(SerializeDynamoDBValueTarget target, NullValueHandling nullValueHandling)
     {
-        ArgumentNullException.ThrowIfNull(target);
-
-        if (!IsEmpty(target))
-            throw new ArgumentOutOfRangeException(nameof(target), "Target is not empty");
-
-        this.stack.Push(new StackEntry { Value = target });
-        this.flags = flags;
+        this.result = new AttributeValue();
+        this.stack.Push(new StackEntry { Value = result });
+        this.target = target;
+        this.nullValueHandling = nullValueHandling;
     }
 
+    public AttributeValue Result => result;
 
-    AttributeValue NextValue()
-    {
-        switch (stack.Peek().BracketType)
+
+    AttributeValue NextValue() =>
+        stack.Peek().BracketType switch
         {
-            default:
-                return (AttributeValue)stack.Pop().Value;
+            BracketType.Object => throw new InvalidOperationException(),
 
-            case BracketType.Object:
-                throw new InvalidOperationException();
-
-            case BracketType.Array:
-                return NextArrayElement();
-        }
-    }
+            BracketType.Array => NextArrayElement(),
+            
+            _ => (AttributeValue)stack.Pop().Value,
+        };
 
     AttributeValue NextArrayElement()
     {
@@ -67,11 +63,12 @@ public class DynamoDBJsonWriter : JsonWriter
         return (List<AttributeValue>)entry.Value;
     }
 
-    bool CurrentIsArray => 
-        (stack.Count > 0 && stack.Peek().BracketType == BracketType.Array);
+    bool ShouldPersistNullOrEmpty => stack.Count == 0 && this.target == SerializeDynamoDBValueTarget.ExpressionConstant; 
 
+    bool CurrentIsArray => stack.Count > 0 && stack.Peek().BracketType == BracketType.Array;
 
     static bool IsEmpty(AttributeValue value) => value.IsEmpty();
+
     static bool IsEmpty(KeyValuePair<string, AttributeValue> entry) => entry.Value.IsEmpty();
 
     public override void WriteStartObject()
@@ -80,8 +77,8 @@ public class DynamoDBJsonWriter : JsonWriter
         stack.Push(
             new StackEntry 
             {
-                    Value = new List<KeyValuePair<string, AttributeValue>>(), 
-                    BracketType = BracketType.Object 
+                Value = new List<KeyValuePair<string, AttributeValue>>(), 
+                BracketType = BracketType.Object 
             });
     }
 
@@ -104,7 +101,7 @@ public class DynamoDBJsonWriter : JsonWriter
 
         var nextValue = NextValue();
 
-        if (currentObject.Count == 0 && !flags.HasFlag(SerializeDynamoDBValueFlags.PersistEmptyObjects))
+        if (currentObject.Count == 0 && !ShouldPersistNullOrEmpty)
             return;
         
         nextValue.M = currentObject.ToDictionary(entry => entry.Key, entry => entry.Value);
@@ -117,8 +114,8 @@ public class DynamoDBJsonWriter : JsonWriter
         stack.Push(
             new StackEntry 
             {
-                    Value = new List<AttributeValue>(), 
-                    BracketType = BracketType.Array 
+                Value = new List<AttributeValue>(), 
+                BracketType = BracketType.Array
             });
     }
 
@@ -134,7 +131,7 @@ public class DynamoDBJsonWriter : JsonWriter
 
         var nextValue = NextValue();
         
-        if (currentArray.Count == 0 && !flags.HasFlag(SerializeDynamoDBValueFlags.PersistEmptyArrays))
+        if (currentArray.Count == 0 && !ShouldPersistNullOrEmpty)
             return;
 
         if (isSet && !CurrentIsArray)
@@ -268,7 +265,7 @@ public class DynamoDBJsonWriter : JsonWriter
 
     void WriteNull(AttributeValue nextValue)
     {
-        if (flags.HasFlag(SerializeDynamoDBValueFlags.PersistNullValues))
+        if (ShouldPersistNullOrEmpty || nullValueHandling == NullValueHandling.Include)
             nextValue.NULL = true;
     }
 

@@ -1,13 +1,12 @@
 
 using System.Linq.Expressions;
 using DynamoDB.Net.Model;
-using DynamoDB.Net.Serialization.Newtonsoft.Json;
 
 namespace DynamoDB.Net.Tests.UnitTests;
 
 public class DynamoDBClientExtensionsTests
 {
-    Client client = new Client();
+    TestClient client = new();
 
     [Fact]
     public async void CanGetAsync()
@@ -119,9 +118,9 @@ public class DynamoDBClientExtensionsTests
         public int Order { get; set; }
     }
 
-    class Client : IDynamoDBClient
+    class TestClient : IDynamoDBClient
     {
-        public Dictionary<object, object> Items { get; } = new Dictionary<object, object>();
+        public Dictionary<object, object> Items { get; } = [];
         public int MaxPageSize { get; set; } = int.MaxValue;
 
         public Task<T> GetAsync<T>(

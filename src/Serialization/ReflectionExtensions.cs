@@ -42,12 +42,23 @@ public static class ReflectionExtensions
 
     public static Func<TTarget, TValue> CompilePropertyGetter<TTarget, TValue>(this MemberInfo property)
     {
+        if (property is PropertyInfo { GetMethod: null })
+            throw new ArgumentOutOfRangeException(nameof(property), "Property is not readable");
+
         var target = Expression.Parameter(typeof(TTarget), "target");
         var body = 
             Expression.Convert(
-                Expression.PropertyOrField(
-                    Expression.Convert(target, property.DeclaringType), 
-                    property.Name), 
+                property switch 
+                {
+                    PropertyInfo { GetMethod: not null } propertyInfo =>
+                        Expression.Property(Expression.Convert(target, property.DeclaringType), propertyInfo),
+
+                    FieldInfo fieldInfo =>
+                        Expression.Field(Expression.Convert(target, property.DeclaringType), fieldInfo),
+
+                    _ => 
+                        throw new ArgumentOutOfRangeException(nameof(property), "Not a readable property or field")
+                }, 
                 typeof(TValue));
 
         return Expression.Lambda<Func<TTarget, TValue>>(body, target).Compile();
@@ -60,11 +71,20 @@ public static class ReflectionExtensions
         var body = 
             Expression.Convert(
                 Expression.Assign(
-                    Expression.PropertyOrField(
-                        Expression.Convert(target, property.DeclaringType),
-                        property.Name),
+                    property switch 
+                    {
+                        PropertyInfo { SetMethod: not null } propertyInfo =>
+                            Expression.Property(Expression.Convert(target, property.DeclaringType), propertyInfo),
+
+                        FieldInfo { IsInitOnly: false } fieldInfo =>
+                            Expression.Field(Expression.Convert(target, property.DeclaringType), fieldInfo),
+
+                        _ => 
+                            throw new ArgumentOutOfRangeException(nameof(property), "Not a writable property or field")
+                    },
                     Expression.Convert(value, property.GetPropertyType())),
                 typeof(TValue));
+
 
         return Expression.Lambda<Func<TTarget, TValue, TValue>>(body, target, value).Compile();
     }

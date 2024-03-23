@@ -228,9 +228,8 @@ public static class ExpressionTranslator
     {
         var value = expression.Value;
 
-        if (value is DynamoDBExpressions.RawExpression)
+        if (value is DynamoDBExpressions.RawExpression raw)
         {
-            var raw = (DynamoDBExpressions.RawExpression)value;
             context.Add(raw);
             return raw.expression;
         }
@@ -242,7 +241,7 @@ public static class ExpressionTranslator
                 value = dynamoDBSet;
         }
 
-        var serializedValue = context.Serializer.SerializeDynamoDBValue(value, expression.Type, context.SerializeFlags | SerializeDynamoDBValueFlags.PersistAll);
+        var serializedValue = context.Serializer.SerializeDynamoDBValue(value, expression.Type, SerializeDynamoDBValueTarget.ExpressionConstant);
 
         return context.GetOrAddAttributeValue(serializedValue);
     }
@@ -250,11 +249,10 @@ public static class ExpressionTranslator
     static string TranslateMember<T>(this MemberExpression expression, ExpressionTranslationContext<T> context) where T : class
     {
         var member = expression.Member;
-        var memberPropertyName = context.Serializer.GetSerializedPropertyName(member);
-
-        if (memberPropertyName == null)
+        var memberPropertyName = 
+            context.Serializer.GetSerializedPropertyName(member) ?? 
             throw new InvalidOperationException($"No property name defined for member {member.Name} of type {member.DeclaringType.FullName}");
-
+            
         return expression.Expression.TranslateMember(memberPropertyName, context);
     }
 
@@ -279,7 +277,7 @@ public static class ExpressionTranslator
             var indexValue = (arguments[0].TryReduceExpression() as ConstantExpression)?.Value;
             if (indexValue != null)
             {
-                var serializedIndexValue = context.Serializer.SerializeDynamoDBValue(indexValue, indexValue.GetType(), context.SerializeFlags | SerializeDynamoDBValueFlags.PersistAll);
+                var serializedIndexValue = context.Serializer.SerializeDynamoDBValue(indexValue, indexValue.GetType(), SerializeDynamoDBValueTarget.ExpressionConstant);
 
                 if (!string.IsNullOrEmpty(serializedIndexValue.S))
                     return expression.TranslateMember(serializedIndexValue.S, context);

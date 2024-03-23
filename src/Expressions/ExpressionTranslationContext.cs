@@ -14,17 +14,15 @@ public class ExpressionTranslationContext<T> where T : class
     Dictionary<string, AttributeValue> attributeValues;
     Dictionary<AttributeValue, string> attributeValueAliases;
 
-    public ExpressionTranslationContext(IDynamoDBSerializer serializer, SerializeDynamoDBValueFlags serializeFlags)
+    public ExpressionTranslationContext(IDynamoDBSerializer serializer)
     {
         ArgumentNullException.ThrowIfNull(serializer);
 
         Serializer = serializer;
-        SerializeFlags = serializeFlags;
     }
 
 
     public IDynamoDBSerializer Serializer { get; }
-    public SerializeDynamoDBValueFlags SerializeFlags { get; }
 
     public Dictionary<string, string> AttributeNames => attributeNames;
     public Dictionary<string, AttributeValue> AttributeValues => attributeValues;
@@ -37,9 +35,7 @@ public class ExpressionTranslationContext<T> where T : class
         GetOrAddWithAlias(value, ref attributeValueAliases, ref attributeValues, AttributeValueComparer.Default, ":v");
 
     public bool IsSerializedToEmpty(object value) =>
-        value == null
-        ? !SerializeFlags.HasFlag(SerializeDynamoDBValueFlags.PersistNullValues)
-        : Serializer.SerializeDynamoDBValue(value, value?.GetType(), SerializeFlags).IsEmpty();     
+        Serializer.SerializeDynamoDBValue(value, value?.GetType()).IsEmpty();     
 
 
     static string GetOrAddWithAlias<TValue>(
@@ -86,7 +82,7 @@ public class ExpressionTranslationContext<T> where T : class
         if (raw.names != null)
         {
             if (this.attributeNames == null)
-                this.attributeNames = new Dictionary<string, string>();
+                this.attributeNames = [];
 
             foreach (var entry in raw.names)
                 this.attributeNames.Add(entry.Key, entry.Value);
@@ -95,14 +91,14 @@ public class ExpressionTranslationContext<T> where T : class
         if (raw.values != null)
         {
             if (this.attributeValues == null)
-                this.attributeValues = new Dictionary<string, AttributeValue>();
+                this.attributeValues = [];
 
             foreach (var entry in raw.values)
             {
                 this.attributeValues.Add(
                     entry.Key,
                     entry.Value as AttributeValue ??
-                    Serializer.SerializeDynamoDBValue(entry.Value, SerializeFlags).EmptyAsNull());
+                    Serializer.SerializeDynamoDBValue(entry.Value).EmptyAsNull());
             }
         }
     }

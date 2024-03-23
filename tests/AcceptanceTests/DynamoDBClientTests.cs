@@ -1,5 +1,6 @@
 
 using Amazon.DynamoDBv2;
+using Amazon.Extensions.NETCore.Setup;
 using DynamoDB.Net.Model;
 using DynamoDB.Net.Serialization;
 using Microsoft.Extensions.DependencyInjection;
@@ -17,27 +18,20 @@ public partial class DynamoDBClientTests : IAsyncLifetime
     async Task IAsyncLifetime.InitializeAsync()
     {
         var services = new ServiceCollection();
-
-        services.AddOptions();
-        services.AddLogging();
-        
-        services.AddSingleton(
-            typeof(IAmazonDynamoDB),
-            serviceProvider =>
-                new AmazonDynamoDBClient(
-                    new AmazonDynamoDBConfig
-                    {
-                        ServiceURL = "http://localhost:8000"
-                    }));
+            
+        services.AddDefaultAWSOptions(
+            new() 
+            { 
+                DefaultClientConfig = { ServiceURL = "http://localhost:8000" }
+            });
 
         services.AddSingleton<IDynamoDBSerializer, Serialization.Newtonsoft.Json.JsonDynamoDBSerializer>();
-        services.AddSingleton<IDynamoDBClient, DynamoDBClient>();
-        services.Configure<DynamoDBClientOptions>(
+        
+        services.AddDynamoDBClient(
             options => 
             {
                 options.TableNamePrefix = $"acceptance-tests-{Guid.NewGuid()}";
-            }
-        );
+            });
 
         serviceProvider = services.BuildServiceProvider();
 

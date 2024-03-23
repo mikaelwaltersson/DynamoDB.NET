@@ -5,15 +5,12 @@ using System.Linq;
 using System.Linq.Expressions;
 using System.Threading;
 using System.Threading.Tasks;
-
 using Amazon.DynamoDBv2;
 using Amazon.DynamoDBv2.Model;
 using Amazon.Runtime;
-
 using DynamoDB.Net.Exceptions;
 using DynamoDB.Net.Serialization;
 using DynamoDB.Net.Expressions;
-
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -180,7 +177,7 @@ public class DynamoDBClient : IDynamoDBClient
         (string, string) index = default,
         CancellationToken cancellationToken = default) where T : class
     {
-        var expressionTranslationContext = new ExpressionTranslationContext<T>(serializer, Options.SerializeFlags);
+        var expressionTranslationContext = new ExpressionTranslationContext<T>(serializer);
 
         var request =
             new ScanRequest
@@ -218,7 +215,7 @@ public class DynamoDBClient : IDynamoDBClient
     {
         ArgumentNullException.ThrowIfNull(keyCondition);
 
-        var expressionTranslationContext = new ExpressionTranslationContext<T>(serializer, Options.SerializeFlags);
+        var expressionTranslationContext = new ExpressionTranslationContext<T>(serializer);
 
         var request =
             new QueryRequest
@@ -258,7 +255,7 @@ public class DynamoDBClient : IDynamoDBClient
     {
         ArgumentNullException.ThrowIfNull(item);
 
-        var expressionTranslationContext = new ExpressionTranslationContext<T>(serializer, Options.SerializeFlags);
+        var expressionTranslationContext = new ExpressionTranslationContext<T>(serializer);
         
         var version = Model.TableDescription.PropertyAccessors<T>.GetVersion?.Invoke(item);
 
@@ -286,7 +283,7 @@ public class DynamoDBClient : IDynamoDBClient
         ArgumentOutOfRangeException.ThrowIfEqual(key, default);
         ArgumentNullException.ThrowIfNull(update);
 
-        var expressionTranslationContext = new ExpressionTranslationContext<T>(serializer, Options.SerializeFlags);
+        var expressionTranslationContext = new ExpressionTranslationContext<T>(serializer);
 
         var translatedItemUpdate = itemEvents.OnItemUpdateTranslated(update.Translate(expressionTranslationContext), version, expressionTranslationContext);
         var translatedItemCondition = itemEvents.OnItemConditionTranslated(condition?.Translate(expressionTranslationContext), version, expressionTranslationContext);
@@ -310,7 +307,7 @@ public class DynamoDBClient : IDynamoDBClient
     {
         ArgumentOutOfRangeException.ThrowIfEqual(key, default);
 
-        var expressionTranslationContext = new ExpressionTranslationContext<T>(serializer, Options.SerializeFlags);
+        var expressionTranslationContext = new ExpressionTranslationContext<T>(serializer);
 
         var translatedItemCondition = itemEvents.OnItemConditionTranslated(condition?.Translate(expressionTranslationContext), version, expressionTranslationContext);
 
@@ -332,7 +329,7 @@ public class DynamoDBClient : IDynamoDBClient
     {
         ArgumentOutOfRangeException.ThrowIfEqual(key, default);
 
-        var expressionTranslationContext = new ExpressionTranslationContext<T>(serializer, Options.SerializeFlags);
+        var expressionTranslationContext = new ExpressionTranslationContext<T>(serializer);
 
         var translatedItemCondition = itemEvents.OnItemConditionTranslated(condition?.Translate(expressionTranslationContext), version, expressionTranslationContext);
 
@@ -348,7 +345,7 @@ public class DynamoDBClient : IDynamoDBClient
     }
 
     Dictionary<string, AttributeValue> Serialize<T>(T itemOrKeys) => 
-        serializer.SerializeDynamoDBValue(itemOrKeys, Options.SerializeFlags).EnsureIsMSet().M;
+        serializer.SerializeDynamoDBValue(itemOrKeys).EnsureIsMSet().M;
 
     T Deserialize<T>(Dictionary<string, AttributeValue> attributes) =>
         serializer.DeserializeDynamoDBValue<T>(new AttributeValue { M = attributes, IsMSet = true });

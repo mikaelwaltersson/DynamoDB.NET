@@ -9,13 +9,11 @@ public interface IDynamoDBSerializer
 {
     object DeserializeDynamoDBValue(AttributeValue value, Type objectType);
 
-    T DeserializeDynamoDBValue<T>(AttributeValue value) =>
-        (T)DeserializeDynamoDBValue(value, typeof(T));
+    T DeserializeDynamoDBValue<T>(AttributeValue value) => (T)DeserializeDynamoDBValue(value, typeof(T));
 
-    AttributeValue SerializeDynamoDBValue(object value, Type objectType, SerializeDynamoDBValueFlags flags = default);
+    AttributeValue SerializeDynamoDBValue(object value, Type objectType, SerializeDynamoDBValueTarget target = default);
 
-    AttributeValue SerializeDynamoDBValue<T>(T value, SerializeDynamoDBValueFlags flags = default) =>
-        SerializeDynamoDBValue(value, typeof(T), flags);
+    AttributeValue SerializeDynamoDBValue<T>(T value, SerializeDynamoDBValueTarget target = default) => SerializeDynamoDBValue(value, typeof(T), target);
 
     string GetSerializedPropertyName(MemberInfo property);
 
