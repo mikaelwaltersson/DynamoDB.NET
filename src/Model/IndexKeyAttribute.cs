@@ -1,5 +1,3 @@
-using System;
-
 namespace DynamoDB.Net.Model;
 
 public abstract class IndexKeyAttribute : Attribute
@@ -20,7 +18,7 @@ public abstract class IndexKeyAttribute : Attribute
         Ordinal = value;
     }
 
-    public string IndexName { get; init; }
+    public string? IndexName { get; init; }
 
     public IndexType IndexType { get; private set; }
     

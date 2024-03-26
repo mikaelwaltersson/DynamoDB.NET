@@ -1,7 +1,4 @@
-using System;
 using System.Collections;
-using System.Collections.Generic;
-using System.Linq;
 
 using Amazon.DynamoDBv2.Model;
 
@@ -28,10 +25,10 @@ public class DynamoDBItemEventHandlers : IDynamoDBItemEventHandler, IEnumerable<
     Dictionary<string, AttributeValue> IDynamoDBItemEventHandler.OnItemSerialized<T>(Dictionary<string, AttributeValue> item, ExpressionTranslationContext<T> translationContext) =>
         this.Aggregate(item, (value, handler) => handler.OnItemSerialized(value, translationContext));
 
-    string IDynamoDBItemEventHandler.OnItemUpdateTranslated<T>(string expression, object version, ExpressionTranslationContext<T> translationContext) =>
+    string IDynamoDBItemEventHandler.OnItemUpdateTranslated<T>(string expression, object? version, ExpressionTranslationContext<T> translationContext) =>
         this.Aggregate(expression, (value, handler) => handler.OnItemUpdateTranslated(value, version, translationContext));
 
-    string IDynamoDBItemEventHandler.OnItemConditionTranslated<T>(string expression, object version, ExpressionTranslationContext<T> translationContext) =>
+    string? IDynamoDBItemEventHandler.OnItemConditionTranslated<T>(string? expression, object? version, ExpressionTranslationContext<T> translationContext) =>
         this.Aggregate(expression, (value, handler) => handler.OnItemConditionTranslated(value, version, translationContext));
 
 

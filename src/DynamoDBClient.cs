@@ -1,10 +1,5 @@
-﻿using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Linq;
+﻿using System.Collections;
 using System.Linq.Expressions;
-using System.Threading;
-using System.Threading.Tasks;
 using Amazon.DynamoDBv2;
 using Amazon.DynamoDBv2.Model;
 using Amazon.Runtime;
@@ -54,19 +49,19 @@ public class DynamoDBClient : IDynamoDBClient
             : ReturnConsumedCapacity.NONE;
     
 
-    public Task<T> TryGetAsync<T>(
+    public Task<T?> TryGetAsync<T>(
         PrimaryKey<T> key,
         bool? consistentRead = false,
         CancellationToken cancellationToken = default) where T : class =>
-        GetAsync(key, consistentRead, cancellationToken, false);
+        GetAsync(key, consistentRead, cancellationToken, throwErrorIfNotExists: false);
 
     public Task<T> GetAsync<T>(
         PrimaryKey<T> key,
         bool? consistentRead = false,
         CancellationToken cancellationToken = default) where T : class =>
-        GetAsync(key, consistentRead, cancellationToken, true);
+        GetAsync(key, consistentRead, cancellationToken, throwErrorIfNotExists: true)!;
 
-    async Task<T> GetAsync<T>(
+    async Task<T?> GetAsync<T>(
         PrimaryKey<T> key,
         bool? consistendRead,
         CancellationToken cancellationToken,
@@ -97,7 +92,7 @@ public class DynamoDBClient : IDynamoDBClient
 
     public async Task<T> PutAsync<T>(
         T item,
-        Expression<Func<T, bool>> condition = null,
+        Expression<Func<T, bool>>? condition = null,
         CancellationToken cancellationToken = default) where T : class
     {
         var operation = CreatePutOperation(item, condition);
@@ -122,8 +117,8 @@ public class DynamoDBClient : IDynamoDBClient
     public async Task<T> UpdateAsync<T>(
         PrimaryKey<T> key,
         Expression<Func<T, DynamoDBExpressions.UpdateAction>> update,
-        Expression<Func<T, bool>> condition = null,
-        object version = null,
+        Expression<Func<T, bool>>? condition = null,
+        object? version = null,
         CancellationToken cancellationToken = default) where T : class
     {
         var operation = CreateUpdateOperation(key, update, condition, version);
@@ -148,8 +143,8 @@ public class DynamoDBClient : IDynamoDBClient
 
     public Task DeleteAsync<T>(
         PrimaryKey<T> key,
-        Expression<Func<T, bool>> condition = null,
-        object version = null,
+        Expression<Func<T, bool>>? condition = null,
+        object? version = null,
         CancellationToken cancellationToken = default) where T : class
     {
         var operation = CreateDeleteOperation(key, condition, version);
@@ -170,11 +165,11 @@ public class DynamoDBClient : IDynamoDBClient
     }
 
     public async Task<IDynamoDBPartialResult<T>> ScanAsync<T>(
-        Expression<Func<T, bool>> filter = null,
+        Expression<Func<T, bool>>? filter = null,
         PrimaryKey<T> exclusiveStartKey = default,
         int? limit = null,
         bool? consistendRead = false,
-        (string, string) index = default,
+        (string?, string?) indexProperties = default,
         CancellationToken cancellationToken = default) where T : class
     {
         var expressionTranslationContext = new ExpressionTranslationContext<T>(serializer);
@@ -184,7 +179,7 @@ public class DynamoDBClient : IDynamoDBClient
             {
                 TableName = Model.TableDescription.GetTableName<T>(Options),
                 ExclusiveStartKey = Serialize(exclusiveStartKey),
-                IndexName = index.GetIndexName(expressionTranslationContext),
+                IndexName = indexProperties.GetIndexName(expressionTranslationContext),
                 FilterExpression = filter?.Translate(expressionTranslationContext),
                 ExpressionAttributeNames = expressionTranslationContext.AttributeNames,
                 ExpressionAttributeValues = expressionTranslationContext.AttributeValues,   
@@ -205,12 +200,12 @@ public class DynamoDBClient : IDynamoDBClient
 
     public async Task<IDynamoDBPartialResult<T>> QueryAsync<T>(
         Expression<Func<T, bool>> keyCondition,
-        Expression<Func<T, bool>> filter = null,
+        Expression<Func<T, bool>>? filter = null,
         PrimaryKey<T> exclusiveStartKey = default,
         bool? scanIndexForward = null,
         int? limit = null,
         bool? consistentRead = false,
-        (string, string) index = default,
+        (string?, string?) indexProperties = default,
         CancellationToken cancellationToken = default) where T : class
     {
         ArgumentNullException.ThrowIfNull(keyCondition);
@@ -223,8 +218,8 @@ public class DynamoDBClient : IDynamoDBClient
                 TableName = Model.TableDescription.GetTableName<T>(Options),
                 ExclusiveStartKey = Serialize(exclusiveStartKey),
                 KeyConditionExpression = keyCondition.Translate(expressionTranslationContext),
-                IndexName = index != default 
-                    ? index.GetIndexName(expressionTranslationContext) 
+                IndexName = indexProperties != default 
+                    ? indexProperties.GetIndexName(expressionTranslationContext) 
                     : keyCondition.GetIndexName(expressionTranslationContext),
                 FilterExpression = filter?.Translate(expressionTranslationContext),
                 ExpressionAttributeNames = expressionTranslationContext.AttributeNames,
@@ -251,7 +246,7 @@ public class DynamoDBClient : IDynamoDBClient
 
     Put CreatePutOperation<T>(
         T item,
-        Expression<Func<T, bool>> condition = null) where T : class
+        Expression<Func<T, bool>>? condition = null) where T : class
     {
         ArgumentNullException.ThrowIfNull(item);
 
@@ -276,8 +271,8 @@ public class DynamoDBClient : IDynamoDBClient
     Update CreateUpdateOperation<T>(
         PrimaryKey<T> key,
         Expression<Func<T, DynamoDBExpressions.UpdateAction>> update,
-        Expression<Func<T, bool>> condition = null,
-        object version = null) where T : class
+        Expression<Func<T, bool>>? condition = null,
+        object? version = null) where T : class
     {
 
         ArgumentOutOfRangeException.ThrowIfEqual(key, default);
@@ -302,8 +297,8 @@ public class DynamoDBClient : IDynamoDBClient
 
     Delete CreateDeleteOperation<T>(
         PrimaryKey<T> key,
-        Expression<Func<T, bool>> condition = null,
-        object version = null) where T : class
+        Expression<Func<T, bool>>? condition = null,
+        object? version = null) where T : class
     {
         ArgumentOutOfRangeException.ThrowIfEqual(key, default);
 
@@ -325,7 +320,7 @@ public class DynamoDBClient : IDynamoDBClient
     ConditionCheck CreateConditionCheckOperation<T>(
         PrimaryKey<T> key, 
         Expression<Func<T, bool>> condition, 
-        object version = null) where T : class
+        object? version = null) where T : class
     {
         ArgumentOutOfRangeException.ThrowIfEqual(key, default);
 
@@ -348,7 +343,7 @@ public class DynamoDBClient : IDynamoDBClient
         serializer.SerializeDynamoDBValue(itemOrKeys).EnsureIsMSet().M;
 
     T Deserialize<T>(Dictionary<string, AttributeValue> attributes) =>
-        serializer.DeserializeDynamoDBValue<T>(new AttributeValue { M = attributes, IsMSet = true });
+        serializer.DeserializeDynamoDBValue<T>(new AttributeValue { M = attributes, IsMSet = true })!;
 
     T DeserializeItem<T>(Dictionary<string, AttributeValue> attributes) where T : class =>
         itemEvents.OnItemDeserialized(Deserialize<T>(attributes));
@@ -416,16 +411,16 @@ public class DynamoDBClient : IDynamoDBClient
             this.transactItems = new List<TransactWriteItem>();
         }
 
-        public void Put<T>(T item, Expression<Func<T, bool>> condition = null) where T : class =>
+        public void Put<T>(T item, Expression<Func<T, bool>>? condition = null) where T : class =>
             Add(new TransactWriteItem { Put = this.dynamoDBClient.CreatePutOperation(item, condition) });
 
-        public void Update<T>(PrimaryKey<T> key, Expression<Func<T, DynamoDBExpressions.UpdateAction>> update, Expression<Func<T, bool>> condition = null, object version = null) where T : class =>
+        public void Update<T>(PrimaryKey<T> key, Expression<Func<T, DynamoDBExpressions.UpdateAction>> update, Expression<Func<T, bool>>? condition = null, object? version = null) where T : class =>
             Add(new TransactWriteItem { Update = this.dynamoDBClient.CreateUpdateOperation(key, update, condition, version) });
 
-        public void Delete<T>(PrimaryKey<T> key, Expression<Func<T, bool>> condition = null, object version = null) where T : class =>
+        public void Delete<T>(PrimaryKey<T> key, Expression<Func<T, bool>>? condition = null, object? version = null) where T : class =>
             Add(new TransactWriteItem { Delete = this.dynamoDBClient.CreateDeleteOperation(key, condition, version) });
 
-        public void ConditionCheck<T>(PrimaryKey<T> key, Expression<Func<T, bool>> condition, object version = null) where T : class =>
+        public void ConditionCheck<T>(PrimaryKey<T> key, Expression<Func<T, bool>> condition, object? version = null) where T : class =>
             Add(new TransactWriteItem { ConditionCheck = this.dynamoDBClient.CreateConditionCheckOperation(key, condition, version) });
 
         public async Task CommitAsync(CancellationToken cancellationToken = default)

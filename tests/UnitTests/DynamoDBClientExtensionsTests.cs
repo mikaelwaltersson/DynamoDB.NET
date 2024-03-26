@@ -161,7 +161,7 @@ public class DynamoDBClientExtensionsTests
             PrimaryKey<T> exclusiveStartKey = default, 
             int? limit = null,
             bool? consistentRead = false,
-            (string, string) index = default,
+            (string?, string?) indexProperties = default,
             CancellationToken cancellationToken = default) where T : class =>
             QueryAsync(_ => true, exclusiveStartKey, limit);
 
@@ -172,7 +172,7 @@ public class DynamoDBClientExtensionsTests
             bool? scanIndexForward = null,
             int? limit = null,
             bool? consistentRead = false,
-            (string, string) index = default,
+            (string?, string?) indexProperties = default,
             CancellationToken cancellationToken = default) where T : class =>
             QueryAsync(keyCondition.Compile(), exclusiveStartKey, limit);
 

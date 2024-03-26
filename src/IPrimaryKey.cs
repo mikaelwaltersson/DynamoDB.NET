@@ -4,9 +4,9 @@ namespace DynamoDB.Net;
 
 public interface IPrimaryKey
 {
-    object PartitionKey { get; }
+    object? PartitionKey { get; }
 
-    object SortKey { get; }
+    object? SortKey { get; }
 
-    string ToString(IDynamoDBSerializer serializer = null, char separator = ',');
+    string ToString(IDynamoDBSerializer? serializer = null, char separator = ',');
 }

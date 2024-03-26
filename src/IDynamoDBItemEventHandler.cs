@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using Amazon.DynamoDBv2.Model;
 using DynamoDB.Net.Expressions;
 
@@ -10,7 +9,7 @@ public interface IDynamoDBItemEventHandler
     
     Dictionary<string, AttributeValue> OnItemSerialized<T>(Dictionary<string, AttributeValue> item, ExpressionTranslationContext<T> translationContext) where T : class;
     
-    string OnItemUpdateTranslated<T>(string expression, object version, ExpressionTranslationContext<T> translationContext) where T : class;
+    string OnItemUpdateTranslated<T>(string expression, object? version, ExpressionTranslationContext<T> translationContext) where T : class;
     
-    string OnItemConditionTranslated<T>(string expression, object version, ExpressionTranslationContext<T> translationContext) where T : class;
+    string? OnItemConditionTranslated<T>(string? expression, object? version, ExpressionTranslationContext<T> translationContext) where T : class;
 }

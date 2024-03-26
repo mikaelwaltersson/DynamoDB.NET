@@ -1,4 +1,3 @@
-using System;
 using Amazon.DynamoDBv2;
 using DynamoDB.Net.Serialization;
 using Microsoft.Extensions.DependencyInjection;
@@ -8,7 +7,7 @@ namespace DynamoDB.Net;
 
 public static class ServiceCollectionExtensions
 {
-    public static IServiceCollection AddDynamoDBClient(this IServiceCollection services, Action<DynamoDBClientOptions> configureOptions = null)
+    public static IServiceCollection AddDynamoDBClient(this IServiceCollection services, Action<DynamoDBClientOptions>? configureOptions = null)
     {
         services.AddOptions();
         services.AddLogging();

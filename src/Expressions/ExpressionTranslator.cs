@@ -1,8 +1,6 @@
-using System;
 using System.Collections;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Linq;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Runtime.CompilerServices;
@@ -13,30 +11,30 @@ namespace DynamoDB.Net.Expressions;
 
 public static class ExpressionTranslator
 {
-    public static string GetIndexName<T>(this (string, string) index, ExpressionTranslationContext<T> context) where T : class
+    public static string? GetIndexName<T>(this (string?, string?) indexProperties, ExpressionTranslationContext<T> context) where T : class
     {
         ArgumentNullException.ThrowIfNull(context);
 
-        var (partitionKeyName, sortKeyName) = index;
+        var (partitionKeyName, sortKeyName) = indexProperties;
         if (partitionKeyName == null)
             return null;
 
-        var partitionKey = typeof(T).GetMember(partitionKeyName, BindingFlags.Instance | BindingFlags.Public).FirstOrDefault();
-        if (partitionKey == null)
-            throw new ArgumentOutOfRangeException(nameof(index), $"'{partitionKeyName}' is not a valid instance member of '{typeof(T).FullName}'");
-
-        var sortKey = (MemberInfo)null;
+        var partitionKey = 
+            typeof(T).GetMember(partitionKeyName, BindingFlags.Instance | BindingFlags.Public).FirstOrDefault() ?? 
+            throw new ArgumentOutOfRangeException(nameof(indexProperties), $"'{partitionKeyName}' is not a valid instance member of '{typeof(T).FullName}'");
+        
+        var sortKey = (MemberInfo?)null;
         if (sortKeyName != null) 
         {
-            sortKey = typeof(T).GetMember(sortKeyName, BindingFlags.Instance | BindingFlags.Public).FirstOrDefault();
-            if (sortKey == null)
-                throw new ArgumentOutOfRangeException(nameof(index), $"'{sortKey}' is not a valid instance member of '{typeof(T).FullName}'");
+            sortKey = 
+                typeof(T).GetMember(sortKeyName, BindingFlags.Instance | BindingFlags.Public).FirstOrDefault() ??
+                throw new ArgumentOutOfRangeException(nameof(indexProperties), $"'{sortKey}' is not a valid instance member of '{typeof(T).FullName}'");
         }
 
         return TableDescription.Get(typeof(T)).GetIndexName(partitionKey, sortKey);
     }
 
-    public static string GetIndexName<T>(this Expression<Func<T, bool>> expression, ExpressionTranslationContext<T> context) where T : class
+    public static string? GetIndexName<T>(this Expression<Func<T, bool>> expression, ExpressionTranslationContext<T> context) where T : class
     {
         ArgumentNullException.ThrowIfNull(context);
 
@@ -57,7 +55,7 @@ public static class ExpressionTranslator
     public static string Translate<T>(this Expression<Func<T, DynamoDBExpressions.UpdateAction>> expression, ExpressionTranslationContext<T> context) where T : class => 
         expression.Apply(new HandleEmptyValuesForUpdateVisitor(context.IsSerializedToEmpty)).Body.ResolveConstants().Translate(context);
 
-    public static Expression<Func<T, TResult>> ReplaceConstantWithParameter<T, TResult>(this Expression<Func<TResult>> expression, T value, [CallerArgumentExpression(nameof(value))] string parameterName = null)
+    public static Expression<Func<T, TResult>> ReplaceConstantWithParameter<T, TResult>(this Expression<Func<TResult>> expression, T value, [CallerArgumentExpression(nameof(value))] string? parameterName = null)
     {
         var parameter = Expression.Parameter(typeof(T), parameterName);
 
@@ -68,7 +66,8 @@ public static class ExpressionTranslator
             expression.Parameters.Append(parameter));
     }
 
-    public static Expression FindReplace(this Expression expression, Func<Expression, bool> find, Expression replace) =>
+    [return: NotNullIfNotNull(nameof(expression))]
+    public static Expression? FindReplace(this Expression expression, Func<Expression, bool> find, Expression replace) =>
         new FindReplaceVisitor(find, replace).Visit(expression);
 
     public static Expression ResolveConstants(this Expression expression) =>
@@ -83,7 +82,7 @@ public static class ExpressionTranslator
                 expression;
     }
 
-    public static string AppendUpdate(string expression, string action, string arguments)
+    public static string AppendUpdate(string? expression, string action, string arguments)
     {
         ArgumentNullException.ThrowIfNull(action);
         ArgumentNullException.ThrowIfNull(arguments);
@@ -106,7 +105,7 @@ public static class ExpressionTranslator
         return $"{expression.Substring(0, i)}, {arguments}{expression.Substring(i)}";
     }
 
-    public static string AppendCondition(string expression, string condition, string binaryOperator)
+    public static string AppendCondition(string? expression, string condition, string binaryOperator)
     {
         ArgumentNullException.ThrowIfNull(condition);
         ArgumentNullException.ThrowIfNull(binaryOperator);
@@ -184,7 +183,7 @@ public static class ExpressionTranslator
             ExpressionType.And => 
                 ((BinaryExpression)expression).CombineUpdateActions(context),
             
-            _ => Unsupported(expression),
+            _ => throw Unsupported(expression)
         };
     }
 
@@ -210,7 +209,7 @@ public static class ExpressionTranslator
                     TranslateArguments(context);
 
                 if (translatedParamsArgument == null)
-                    return Unsupported(expression);
+                    throw Unsupported(expression);
 
                 translatedArguments =
                     translatedArguments.
@@ -221,7 +220,7 @@ public static class ExpressionTranslator
             return string.Format(translatesTo.Format, translatedArguments.Cast<object>().ToArray());
         }
 
-        return Unsupported(expression);
+        throw Unsupported(expression);
     }
 
     static string TranslateConstant<T>(this ConstantExpression expression, ExpressionTranslationContext<T> context) where T : class
@@ -236,7 +235,7 @@ public static class ExpressionTranslator
 
         if (value is Array && value is not byte[])
         {
-            var elementType = value.GetType().GetElementType();
+            var elementType = value.GetType().GetElementType() ?? throw Unsupported(expression);
             if (context.Serializer.TryCreateDynamoDBSet(elementType, (IEnumerable)value, out var dynamoDBSet))
                 value = dynamoDBSet;
         }
@@ -248,11 +247,14 @@ public static class ExpressionTranslator
 
     static string TranslateMember<T>(this MemberExpression expression, ExpressionTranslationContext<T> context) where T : class
     {
+        if (expression.Expression == null)
+            throw Unsupported(expression);
+
         var member = expression.Member;
         var memberPropertyName = 
             context.Serializer.GetSerializedPropertyName(member) ?? 
-            throw new InvalidOperationException($"No property name defined for member {member.Name} of type {member.DeclaringType.FullName}");
-            
+            throw new InvalidOperationException($"No property name defined for member {member.Name} of type {member.DeclaringType?.FullName}");
+        
         return expression.Expression.TranslateMember(memberPropertyName, context);
     }
 
@@ -268,7 +270,7 @@ public static class ExpressionTranslator
     }
 
     static string TranslateIndex<T>(this IndexExpression expression, ExpressionTranslationContext<T> context) where T : class => 
-        expression.Object.TranslateIndex(expression.Arguments, context);
+        (expression.Object ?? throw Unsupported(expression)).TranslateIndex(expression.Arguments, context);
 
     static string TranslateIndex<T>(this Expression expression, IList<Expression> arguments, ExpressionTranslationContext<T> context) where T : class
     {
@@ -287,7 +289,7 @@ public static class ExpressionTranslator
             }
         }
 
-        return Unsupported(expression);
+        throw Unsupported(expression);
     }
 
     static string TranslateBinary<T>(this BinaryExpression expression, string binaryOperation, ExpressionTranslationContext<T> context) where T : class
@@ -298,7 +300,7 @@ public static class ExpressionTranslator
                 Expression.Constant(
                     Enum.ToObject(
                         ((UnaryExpression)expression.Right).Operand.Type,
-                        ((ConstantExpression)expression.Left).Value)),
+                        ((ConstantExpression)expression.Left).Value ?? throw Unsupported(expression))),
                 context)
             : expression.Left.Translate(context);
 
@@ -308,7 +310,7 @@ public static class ExpressionTranslator
                 Expression.Constant(
                     Enum.ToObject(
                         ((UnaryExpression)expression.Left).Operand.Type,
-                        ((ConstantExpression)expression.Right).Value)),
+                        ((ConstantExpression)expression.Right).Value ?? throw Unsupported(expression))),
                 context)
             : expression.Right.Translate(context);
 
@@ -325,7 +327,7 @@ public static class ExpressionTranslator
     static string CombineUpdateActions<T>(this BinaryExpression expression, ExpressionTranslationContext<T> context) where T : class
     {
         if (expression.Type != typeof(DynamoDBExpressions.UpdateAction))
-            return Unsupported(expression);
+            throw Unsupported(expression);
 
         var left = expression.Left.Translate(context);
         var right = expression.Right.Translate(context);
@@ -353,13 +355,13 @@ public static class ExpressionTranslator
         }
     }
     
-    static bool IsReferenceTo(this Expression expression, object value) =>
+    static bool IsReferenceTo(this Expression expression, object? value) =>
         expression.TryResolveConstantValue(out var constantValue) && ReferenceEquals(value, constantValue);
 
     static IEnumerable<string> TranslateArguments<T>(this IEnumerable<Expression> arguments, ExpressionTranslationContext<T> context) where T : class =>
         arguments.Select(argument => argument.Translate(context));
 
-    static object InvokeExpression(Expression expression) =>
+    static object? InvokeExpression(Expression expression) =>
         ExpressionInvoker.Get(expression.Type).Invoke(expression);
 
     static Expression TryReduceExpression(this Expression expression)
@@ -383,7 +385,7 @@ public static class ExpressionTranslator
         return expression;
     }
 
-    static bool TryResolveConstantValue(this Expression expression, out object constantValue)
+    static bool TryResolveConstantValue(this Expression expression, out object? constantValue)
     {
         if (expression.CanResolveConstantValue())
         {
@@ -400,9 +402,9 @@ public static class ExpressionTranslator
     static bool CanResolveConstantValue(this Expression expression) =>
         expression is ConstantExpression constantExpression ||
         (expression is MemberExpression memberExpression && 
-            memberExpression.Expression.CanResolveConstantValue()) ||
+            memberExpression.Expression?.CanResolveConstantValue() is true) ||
         (expression is IndexExpression indexExpression && 
-            indexExpression.Object.CanResolveConstantValue() &&
+            indexExpression.Object?.CanResolveConstantValue() is true &&
             indexExpression.Arguments.All(argument => argument.CanResolveConstantValue()));
 
     static T Apply<T>(this T expression, ExpressionVisitor expressionVisitor) where T : LambdaExpression =>
@@ -412,19 +414,14 @@ public static class ExpressionTranslator
         (node is ParameterExpression || (node as ConstantExpression)?.Value is DynamoDBExpressions.RawExpression);
 
     static bool IsMemberOfTypeWithAttribute<T, TAttribute>(Expression expression) =>
-        (GetMemberOf<T>(expression)?.GetCustomAttributes(typeof(TAttribute), true)?.Any() == true);
+        GetMemberOf<T>(expression)?.GetCustomAttributes(typeof(TAttribute), true)?.Length > 0;
 
-    static MemberInfo GetMemberOf<T>(Expression expression)
-    {
-        var memberExpression = expression as MemberExpression;
-
-        if (memberExpression != null && 
-            memberExpression.Expression != null &&
-            typeof(T).IsAssignableFrom(memberExpression.Expression.Type))
-            return memberExpression.Member;
-
-        return null;
-    }
+    static MemberInfo? GetMemberOf<T>(Expression expression) => 
+        expression is MemberExpression memberExpression &&
+        memberExpression.Expression != null &&
+        typeof(T).IsAssignableFrom(memberExpression.Expression.Type)
+            ? memberExpression.Member
+            : null;
 
     static bool Contains(this Expression expression, Func<Expression, bool> predicate) =>
         expression.FindFirst(predicate, node => true);
@@ -438,10 +435,8 @@ public static class ExpressionTranslator
         return search.Result;
     }
 
-    static string Unsupported(Expression expression)
-    {
-        throw new InvalidOperationException($"Expression is unsupported: {expression}");
-    }
+
+    static InvalidOperationException Unsupported(Expression expression) => new($"Expression is unsupported: {expression}");
 
     class FindFirstVisitor<TValue> : ExpressionVisitor
     {
@@ -454,12 +449,14 @@ public static class ExpressionTranslator
             this.selector = selector;
         }
 
-        public TValue Result { get; private set; }
+        public TValue Result { get; private set; } = default!;
+
         public bool HasResult { get; private set; }
 
-        public override Expression Visit(Expression node)
+        [return: NotNullIfNotNull(nameof(node))]
+        public override Expression? Visit(Expression? node)
         {
-            if (!HasResult && predicate(node))
+            if (!HasResult && node != null && predicate(node))
                 Result = selector(node);
 
             return base.Visit(node);
@@ -468,15 +465,16 @@ public static class ExpressionTranslator
 
     class ReduceExpressionVisitor : ExpressionVisitor
     {
-        public override Expression Visit(Expression node) =>
+        [return: NotNullIfNotNull(nameof(node))]
+        public override Expression? Visit(Expression? node) =>
             base.Visit(node)?.TryReduceExpression();
     }
 
     class HandleEmptyValuesForUpdateVisitor : ExpressionVisitor
     {
-        Func<object, bool> isSerializedToEmpty;
+        Func<object?, bool> isSerializedToEmpty;
 
-        public HandleEmptyValuesForUpdateVisitor(Func<object, bool> isSerializedToEmpty)
+        public HandleEmptyValuesForUpdateVisitor(Func<object?, bool> isSerializedToEmpty)
         {
             this.isSerializedToEmpty = isSerializedToEmpty;
         }
@@ -503,19 +501,11 @@ public static class ExpressionTranslator
         }           
     }
 
-    class FindReplaceVisitor : ExpressionVisitor
+    class FindReplaceVisitor(Func<Expression, bool> find, Expression replace) : ExpressionVisitor
     {
-        Func<Expression, bool> find;
-        Expression replace;
-
-        public FindReplaceVisitor(Func<Expression, bool> find, Expression replace)
-        {
-            this.find = find;
-            this.replace = replace;
-        }
-
-        public override Expression Visit(Expression node) =>
-            find(node) ? replace : base.Visit(node);
+        [return: NotNullIfNotNull(nameof(node))]
+        public override Expression? Visit(Expression? node) =>
+            node != null && find(node) ? replace : base.Visit(node);
     }
 
     class ResolveConstantsVisitor : ExpressionVisitor
@@ -1126,18 +1116,18 @@ public static class ExpressionTranslator
 
     abstract class ExpressionInvoker
     {
-        public abstract object Invoke(Expression expression);
+        public abstract object? Invoke(Expression expression);
         
         static readonly ConcurrentDictionary<Type, ExpressionInvoker> cachedInvokers = [];
 
         public static ExpressionInvoker Get(Type type) => 
             cachedInvokers.GetOrAdd(type, static type => (ExpressionInvoker)
-                System.Activator.CreateInstance(typeof(ExpressionInvoker<>).MakeGenericType(type)));
+                Serialization.Activator.CreateInstance(typeof(ExpressionInvoker<>).MakeGenericType(type)));
     }
 
     class ExpressionInvoker<T> : ExpressionInvoker
     {
-        public override object Invoke(Expression expression) => 
+        public override object? Invoke(Expression expression) => 
             Expression.Lambda<Func<T>>(expression).Compile()();
     }
 }

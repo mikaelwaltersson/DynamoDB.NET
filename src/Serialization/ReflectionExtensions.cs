@@ -1,7 +1,4 @@
-using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Runtime.CompilerServices;
@@ -51,10 +48,10 @@ public static class ReflectionExtensions
                 property switch 
                 {
                     PropertyInfo { GetMethod: not null } propertyInfo =>
-                        Expression.Property(Expression.Convert(target, property.DeclaringType), propertyInfo),
+                        Expression.Property(Expression.Convert(target, property.DeclaringType ?? typeof(TTarget)), propertyInfo),
 
                     FieldInfo fieldInfo =>
-                        Expression.Field(Expression.Convert(target, property.DeclaringType), fieldInfo),
+                        Expression.Field(Expression.Convert(target, property.DeclaringType ?? typeof(TTarget)), fieldInfo),
 
                     _ => 
                         throw new ArgumentOutOfRangeException(nameof(property), "Not a readable property or field")
@@ -74,10 +71,10 @@ public static class ReflectionExtensions
                     property switch 
                     {
                         PropertyInfo { SetMethod: not null } propertyInfo =>
-                            Expression.Property(Expression.Convert(target, property.DeclaringType), propertyInfo),
+                            Expression.Property(Expression.Convert(target, property.DeclaringType ?? typeof(TTarget)), propertyInfo),
 
                         FieldInfo { IsInitOnly: false } fieldInfo =>
-                            Expression.Field(Expression.Convert(target, property.DeclaringType), fieldInfo),
+                            Expression.Field(Expression.Convert(target, property.DeclaringType ?? typeof(TTarget)), fieldInfo),
 
                         _ => 
                             throw new ArgumentOutOfRangeException(nameof(property), "Not a writable property or field")

@@ -1,5 +1,3 @@
-using System.Collections;
-
 using Newtonsoft.Json;
 using Newtonsoft.Json.Serialization;
 
@@ -22,10 +20,7 @@ public class RequiredAttribute : ValidationAttribute
 
     override protected bool IsValid(object target, string propertyName, object value, out string errorMessage)
     {
-        if (value == null ||
-            value.Equals(null) ||
-            (value is string && ((string)value).Length == 0) ||
-            (value is ICollection && ((ICollection)value).Count == 0))
+        if (DynamoDBValue.IsEmptyOrNull(value))
         {
             errorMessage = $"Required property '{propertyName}' expects a value but got null or empty.";
             return false;

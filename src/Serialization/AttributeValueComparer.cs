@@ -1,7 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
 using Amazon.DynamoDBv2.Model;
 
 namespace DynamoDB.Net;
@@ -10,7 +6,7 @@ public class AttributeValueComparer : IEqualityComparer<AttributeValue>
 {
     public static AttributeValueComparer Default { get; } = new AttributeValueComparer();
     
-    public bool Equals(AttributeValue x, AttributeValue y)
+    public bool Equals(AttributeValue? x, AttributeValue? y)
     {
         if (x != null && y != null)
         {
@@ -71,20 +67,21 @@ public class AttributeValueComparer : IEqualityComparer<AttributeValue>
     const int InitialHashCode = 13;
 
     static int CombineHashCodes(int h1, int h2) => ((h1 << 5) + h1) ^ h2;
+    
     static int CombineHashCodes(IEnumerable<int> hashCodes) => hashCodes.Aggregate(InitialHashCode, CombineHashCodes);
 
     class MemoryStreamComparer : IEqualityComparer<MemoryStream>
     {
         public static MemoryStreamComparer Default { get; } = new MemoryStreamComparer();
 
-        static ArraySegment<byte> BufferOf(MemoryStream obj) => 
-            obj.TryGetBuffer(out var xbuffer) 
-                ? xbuffer 
-                : new ArraySegment<byte>(obj.ToArray());
+        static ArraySegment<byte> BufferOf(MemoryStream stream) => 
+            stream.TryGetBuffer(out var buffer) 
+                ? buffer 
+                : new ArraySegment<byte>(stream.ToArray());
 
-
-        public bool Equals(MemoryStream x, MemoryStream y) =>
-            BufferOf(x).SequenceEqual(BufferOf(y));
+        public bool Equals(MemoryStream? x, MemoryStream? y) =>
+            (x == null && y == null) || 
+            (x != null && y != null && BufferOf(x).SequenceEqual(BufferOf(y)));
 
         public int GetHashCode(MemoryStream obj) =>
             CombineHashCodes(BufferOf(obj).Select(b => b.GetHashCode()));

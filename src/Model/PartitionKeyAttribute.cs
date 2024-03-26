@@ -1,5 +1,3 @@
-using System;
-
 namespace DynamoDB.Net.Model;
 
 [AttributeUsage(AttributeTargets.Property, AllowMultiple = true)]

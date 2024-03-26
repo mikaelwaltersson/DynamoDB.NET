@@ -1,6 +1,4 @@
-﻿using System.Collections.Generic;
-
-namespace DynamoDB.Net;
+﻿namespace DynamoDB.Net;
 
 public class DynamoDBClientOptions
 {

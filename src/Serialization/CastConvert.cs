@@ -1,15 +1,13 @@
-using System;
 using System.Collections.Concurrent;
-using System.Linq;
 using System.Linq.Expressions;
 
 namespace DynamoDB.Net.Serialization;
 
 public static class CastConvert
 {
-    static readonly ConcurrentDictionary<Tuple<Type, Type>, Func<object, object>> compiledCastTo = new();
+    static readonly ConcurrentDictionary<Tuple<Type, Type>, Func<object?, object?>> compiledCastTo = new();
 
-    static Func<object, object> CompileCastTo(Tuple<Type, Type> args)
+    static Func<object?, object?> CompileCastTo(Tuple<Type, Type> args)
     {
         var fromType = args.Item1;
         var toType = args.Item2;
@@ -23,7 +21,7 @@ public static class CastConvert
             var casts = new[] { fromType, toType, typeof(object) };
             var compiledCast = 
                 Expression.
-                    Lambda<Func<object, object>>(casts.Aggregate((Expression)parameter, Expression.Convert), parameter).
+                    Lambda<Func<object?, object?>>(casts.Aggregate((Expression)parameter, Expression.Convert), parameter).
                     Compile();
 
             return compiledCast;
@@ -35,9 +33,9 @@ public static class CastConvert
     }
 
 
-    public static object CastTo<T>(this T value, Type objectType) => 
+    public static object? CastTo<T>(this T? value, Type objectType) => 
         compiledCastTo.GetOrAdd(Tuple.Create(typeof(T), objectType), CompileCastTo)(value);
 
-    public static object CastTo(this object value, Type objectType) => 
+    public static object? CastTo(this object? value, Type objectType) => 
         compiledCastTo.GetOrAdd(Tuple.Create(value?.GetType() ?? typeof(object), objectType), CompileCastTo)(value);
 }

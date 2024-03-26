@@ -5,7 +5,7 @@ namespace DynamoDB.Net.Tests;
 
 public static class Snapshot
 {
-    public static void Match(object value) =>
+    public static void Match(object? value) =>
         Snapshooter.Xunit.Snapshot.Match(value.ToSnapshotFriendlyObject());
 
      static object? ToSnapshotFriendlyObject<T>(this T value)

@@ -1,5 +1,4 @@
-﻿using System;
-using System.Text.Json;
+﻿using System.Text.Json;
 using System.Text.Json.Serialization;
 using Amazon.DynamoDBv2;
 using Amazon.Runtime;
@@ -14,9 +13,9 @@ static class LoggerExtensions
     public static void InvokeSuccess(this ILogger logger, AmazonWebServiceResponse response) => invokeSuccess(logger, new ToJson(response), null);
     public static void InvokeFailed(this ILogger logger, AmazonDynamoDBException error) => invokeFailed(logger, error.ErrorCode, null);
 
-    static readonly Action<ILogger, object, Exception> invokeBegin;
-    static readonly Action<ILogger, object, Exception> invokeSuccess;
-    static readonly Action<ILogger, string, Exception> invokeFailed;
+    static readonly Action<ILogger, object, Exception?> invokeBegin;
+    static readonly Action<ILogger, object, Exception?> invokeSuccess;
+    static readonly Action<ILogger, string, Exception?> invokeFailed;
 
     static LoggerExtensions()
     {

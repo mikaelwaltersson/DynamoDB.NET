@@ -1,6 +1,5 @@
 
 using Amazon.DynamoDBv2;
-using Amazon.Extensions.NETCore.Setup;
 using DynamoDB.Net.Model;
 using DynamoDB.Net.Serialization;
 using Microsoft.Extensions.DependencyInjection;

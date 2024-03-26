@@ -1,4 +1,3 @@
-using System;
 using System.Collections;
 using System.Reflection;
 using Amazon.DynamoDBv2.Model;
@@ -17,7 +16,7 @@ public class DynamoDBSerializer : IDynamoDBSerializer
         throw new NotImplementedException();
     }
 
-    public AttributeValue SerializeDynamoDBValue(object value, Type objectType, SerializeDynamoDBValueTarget target = default)
+    public AttributeValue SerializeDynamoDBValue(object? value, Type? objectType, SerializeDynamoDBValueTarget target = default)
     {
         throw new NotImplementedException();
     }

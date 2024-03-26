@@ -1,18 +1,14 @@
-using System;
-using System.Collections.Generic;
-
 using Amazon.DynamoDBv2.Model;
-
 using DynamoDB.Net.Serialization;
 
 namespace DynamoDB.Net.Expressions;
 
 public class ExpressionTranslationContext<T> where T : class
 {
-    Dictionary<string, string> attributeNames;
-    Dictionary<string, string> attributeNameAliases;
-    Dictionary<string, AttributeValue> attributeValues;
-    Dictionary<AttributeValue, string> attributeValueAliases;
+    Dictionary<string, string>? attributeNames;
+    Dictionary<string, string>? attributeNameAliases;
+    Dictionary<string, AttributeValue>? attributeValues;
+    Dictionary<AttributeValue, string>? attributeValueAliases;
 
     public ExpressionTranslationContext(IDynamoDBSerializer serializer)
     {
@@ -24,8 +20,9 @@ public class ExpressionTranslationContext<T> where T : class
 
     public IDynamoDBSerializer Serializer { get; }
 
-    public Dictionary<string, string> AttributeNames => attributeNames;
-    public Dictionary<string, AttributeValue> AttributeValues => attributeValues;
+    public Dictionary<string, string>? AttributeNames => attributeNames;
+    
+    public Dictionary<string, AttributeValue>? AttributeValues => attributeValues;
 
 
     public string GetOrAddAttributeName(string name) => 
@@ -34,34 +31,34 @@ public class ExpressionTranslationContext<T> where T : class
     public string GetOrAddAttributeValue(AttributeValue value) => 
         GetOrAddWithAlias(value, ref attributeValueAliases, ref attributeValues, AttributeValueComparer.Default, ":v");
 
-    public bool IsSerializedToEmpty(object value) =>
+    public bool IsSerializedToEmpty(object? value) =>
         Serializer.SerializeDynamoDBValue(value, value?.GetType()).IsEmpty();     
 
 
     static string GetOrAddWithAlias<TValue>(
         TValue value, 
-        ref Dictionary<TValue, string> valueToAlias, 
-        ref Dictionary<string, TValue> aliasToValue, 
+        ref Dictionary<TValue, string>? valueToAlias, 
+        ref Dictionary<string, TValue>? aliasToValue, 
         IEqualityComparer<TValue> valueComparer,
         string prefix) where TValue : class
     {
         ArgumentNullException.ThrowIfNull(value);
 
-        LazyInitializeDictionary(ref valueToAlias, valueComparer);
+        valueToAlias ??= new(valueComparer);
 
         if (!valueToAlias.TryGetValue(value, out var alias))
         {
             alias = GetNextUnusedAlias(ref aliasToValue, prefix);
             valueToAlias.Add(value, alias);
-            aliasToValue.Add(alias, value);
+            aliasToValue!.Add(alias, value);
         }
 
         return alias;
     }
 
-    static string GetNextUnusedAlias<TValue>(ref Dictionary<string, TValue> aliasToValue, string prefix)
+    static string GetNextUnusedAlias<TValue>(ref Dictionary<string, TValue>? aliasToValue, string prefix)
     {
-        LazyInitializeDictionary(ref aliasToValue, StringComparer.Ordinal);
+        aliasToValue ??= new(StringComparer.Ordinal);
 
         for (var i = aliasToValue.Count; ; i++)
         {
@@ -69,12 +66,6 @@ public class ExpressionTranslationContext<T> where T : class
             if (!aliasToValue.ContainsKey(alias))
                 return alias;
         }
-    }
-
-    static void LazyInitializeDictionary<TKey, TValue>(ref Dictionary<TKey, TValue> dictionary, IEqualityComparer<TKey> comparer)
-    {
-        if (dictionary == null)
-            dictionary = new Dictionary<TKey, TValue>(comparer);
     }
 
     internal void Add(DynamoDBExpressions.RawExpression raw)

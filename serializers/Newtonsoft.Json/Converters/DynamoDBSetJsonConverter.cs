@@ -54,7 +54,7 @@ public class DynamoDBSetJsonConverter : JsonConverter
                     ? ItemConverter.ReadJson(reader, elementType, null, serializer)
                     : reader.Value;
 
-            if (element == null || element.Equals(null))
+            if (DynamoDBValue.IsEmptyOrNull(element))
                 continue;
 
             element =
@@ -80,7 +80,7 @@ public class DynamoDBSetJsonConverter : JsonConverter
 
         foreach (var element in (IEnumerable)value)
         {
-            if (element == null || element.Equals(null))
+            if (DynamoDBValue.IsEmptyOrNull(element))
                 continue;
 
             if (ItemConverter != null)

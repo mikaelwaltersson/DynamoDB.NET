@@ -1,5 +1,3 @@
-using System;
-using System.Collections.Generic;
 using System.Linq.Expressions;
 
 namespace DynamoDB.Net;
@@ -7,29 +5,29 @@ namespace DynamoDB.Net;
 public static class DynamoDBExpressions
 {
     [TranslatesTo("{0} = {1}")]
-    public static bool EqualTo<T>(T a, T b) => DynamoDBMethod<bool>();
+    public static bool EqualTo<T>(T left, T right) => DynamoDBMethod<bool>();
 
     [TranslatesTo("{0} <> {1}")]
-    public static bool NotEqualTo<T>(T a, T b) => DynamoDBMethod<bool>();
+    public static bool NotEqualTo<T>(T left, T right) => DynamoDBMethod<bool>();
     
     [TranslatesTo("{0} < {1}")]
-    public static bool LessThan<T>(T a, T b) => DynamoDBMethod<bool>();
+    public static bool LessThan<T>(T left, T right) => DynamoDBMethod<bool>();
     
     [TranslatesTo("{0} <= {1}")]
-    public static bool LessThanOrEqualTo<T>(T a, T b) => DynamoDBMethod<bool>();
+    public static bool LessThanOrEqualTo<T>(T left, T right) => DynamoDBMethod<bool>();
 
     [TranslatesTo("{0} > {1}")]
-    public static bool GreaterThan<T>(T a, T b) => DynamoDBMethod<bool>();
+    public static bool GreaterThan<T>(T left, T right) => DynamoDBMethod<bool>();
 
     [TranslatesTo("{0} >= {1}")]
-    public static bool GreaterThanOrEqualTo<T>(T a, T b) => DynamoDBMethod<bool>();
+    public static bool GreaterThanOrEqualTo<T>(T left, T right) => DynamoDBMethod<bool>();
 
 
     [TranslatesTo("{0} BETWEEN {1} AND {2}")]
-    public static bool Between<T>(T a, T b, T c) => DynamoDBMethod<bool>();
+    public static bool Between<T>(T left, T right, T c) => DynamoDBMethod<bool>();
 
     [TranslatesTo("{0} IN ({1})", hasParams: true)]
-    public static bool In<T>(T a, params T[] bcd) => DynamoDBMethod<bool>();
+    public static bool In<T>(T element, params T[] collection) => DynamoDBMethod<bool>();
 
 
     [TranslatesTo("attribute_exists({0})")]
@@ -101,58 +99,40 @@ public static class DynamoDBExpressions
     public const string List = "L";
     public const string Map = "M";
 
-    public abstract class RawExpression
+    public abstract class RawExpression(string expression)
     {
-        internal string expression;
-        internal Dictionary<string, string> names;
-        internal Dictionary<string, object> values;
+        internal readonly string expression = expression ?? throw new ArgumentNullException(nameof(expression));
+        internal Dictionary<string, string>? names;
+        internal Dictionary<string, object>? values;
 
-        protected RawExpression(string expression)
-        {
-            ArgumentNullException.ThrowIfNull(expression);
-
-            this.expression = expression;
-        }
-
-        public Dictionary<string, string> Names => names ?? (names = new Dictionary<string, string>());
-        public Dictionary<string, object> Values => values ?? (values = new Dictionary<string, object>());
+        public Dictionary<string, string> Names => names ??= [];
+        
+        public Dictionary<string, object> Values => values ??= [];
     }
 
-    public sealed class RawExpression<T> : RawExpression where T : class
+    public sealed class RawExpression<T>(string expression) : RawExpression(expression) where T : class
     {
-        public RawExpression(string expression)
-            : base(expression)
-        {
-        }
-
         public static implicit operator Expression<Func<T, bool>>(RawExpression<T> expression) => expression.ToExpression<bool>();
+        
         public static implicit operator Expression<Func<T, UpdateAction>>(RawExpression<T> expression) => expression.ToExpression<UpdateAction>();
 
         Expression<Func<T, TResult>> ToExpression<TResult>() => _ => (TResult)(object)this;
     }
 
-
-    internal class TranslatesTo : Attribute
+    [AttributeUsage(AttributeTargets.Method)]
+    internal class TranslatesTo(string format, bool hasParams = false, bool arrayConstantsAreSets = false) : Attribute
     {
-        public TranslatesTo(string format, bool hasParams = false, bool arrayConstantsAreSets = false)
-        {
-            Format = format;
-            HasParams = hasParams;
-            ArrayConstantsAreSets = arrayConstantsAreSets;
-        }
+        public string Format { get; } = format;
 
-        public string Format { get; }
-        public bool HasParams { get; }
-        public bool ArrayConstantsAreSets { get; }
+        public bool HasParams { get; } = hasParams;
+        
+        public bool ArrayConstantsAreSets { get; } = arrayConstantsAreSets;
     }
 
     public struct UpdateAction
     {
-        public static UpdateAction operator &(UpdateAction a, UpdateAction b) => DynamoDBMethod<UpdateAction>();
+        public static UpdateAction operator &(UpdateAction left, UpdateAction right) => DynamoDBMethod<UpdateAction>();
     }
 
-    static T DynamoDBMethod<T>()
-    {
-        throw new NotSupportedException();
-    }
+    static T DynamoDBMethod<T>() => throw new NotSupportedException();
 }

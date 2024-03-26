@@ -1,5 +1,3 @@
-using System;
-using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Amazon.DynamoDBv2.Model;
@@ -93,7 +91,7 @@ public class AttributeValueJsonConverter : JsonConverter<AttributeValue>
                 while (reader.Read() && reader.TokenType != JsonTokenType.EndObject)
                 {
                     Assert(reader.TokenType is JsonTokenType.PropertyName);
-                    var property = reader.GetString();
+                    var property = reader.GetString()!;
 
                     Assert(reader.Read() && reader.TokenType is JsonTokenType.StartObject);
                     value.M[property] = Read(ref reader, typeToConvert, options);

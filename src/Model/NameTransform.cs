@@ -1,6 +1,4 @@
-﻿using System.Linq;
-
-namespace DynamoDB.Net.Model;
+﻿namespace DynamoDB.Net.Model;
 
 static class NameTransform
 {

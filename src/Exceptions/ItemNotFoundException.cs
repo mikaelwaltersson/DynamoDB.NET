@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace DynamoDB.Net.Exceptions;
+﻿namespace DynamoDB.Net.Exceptions;
 
 public class ItemNotFoundException(string message) : Exception(message)
 {
