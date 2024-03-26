@@ -57,7 +57,7 @@ public static class DynamoDBExpressions
     public static UpdateAction Add<T>(T path, T value) => DynamoDBMethod<UpdateAction>();
 
     [TranslatesTo("ADD {0} {1}")]
-    public static UpdateAction Add<T>(IEnumerable<T> path, IEnumerable<T> value) => DynamoDBMethod<UpdateAction>();
+    public static UpdateAction Add<T>(IEnumerable<T>? path, IEnumerable<T>? value) => DynamoDBMethod<UpdateAction>();
 
     [TranslatesTo("SET {0} = {1}")]
     public static UpdateAction Set<T>(T path, T value) => DynamoDBMethod<UpdateAction>();
@@ -69,7 +69,7 @@ public static class DynamoDBExpressions
     public static UpdateAction Remove(params object[] paths) => DynamoDBMethod<UpdateAction>();
 
     [TranslatesTo("DELETE {0} {1}")]
-    public static UpdateAction Delete<T>(ISet<T> path, IEnumerable<T> value) => DynamoDBMethod<UpdateAction>();
+    public static UpdateAction Delete<T>(IEnumerable<T>? path, IEnumerable<T>? value) => DynamoDBMethod<UpdateAction>();
 
     [TranslatesTo("")]
     public static UpdateAction NoOp<T>(T path) => DynamoDBMethod<UpdateAction>();
@@ -82,7 +82,7 @@ public static class DynamoDBExpressions
     public static T IfNotExists<T>(T path, T operand) => DynamoDBMethod<T>();
 
     [TranslatesTo("list_append({0}, {1})")]
-    public static IEnumerable<T> ListAppend<T>(IEnumerable<T> operand1, IEnumerable<T> operand2) => DynamoDBMethod<IEnumerable<T>>();
+    public static IEnumerable<T> ListAppend<T>(IEnumerable<T>? operand1, IEnumerable<T>? operand2) => DynamoDBMethod<IEnumerable<T>>();
 
 
     public abstract class RawExpression(string expression)
