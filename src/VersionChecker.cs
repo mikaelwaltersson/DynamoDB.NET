@@ -10,6 +10,8 @@ namespace DynamoDB.Net;
 
 public class VersionChecker : IDynamoDBItemEventHandler
 {
+    public static readonly object Skip = new();
+
     public T OnItemDeserialized<T>(T item) where T : class => item;
 
     public Dictionary<string, AttributeValue> OnItemSerialized<T>(Dictionary<string, AttributeValue> item, ExpressionTranslationContext<T> translationContext) where T : class
@@ -37,7 +39,7 @@ public class VersionChecker : IDynamoDBItemEventHandler
         ArgumentNullException.ThrowIfNull(translationContext);
 
         var versionProperty = TableDescription.Get(typeof(T)).VersionProperty;
-        if (versionProperty != null && !ReferenceEquals(version, DynamoDBExpressions.SkipVersionCheckAndUpdate))
+        if (versionProperty != null && !ReferenceEquals(version, Skip))
         {
             var serializedVersion = translationContext.Serializer.SerializeDynamoDBValue(version);
             var isIncrementableVersion = GetDefaultSerializedVersionValue(versionProperty, translationContext.Serializer).N != null;
@@ -65,7 +67,7 @@ public class VersionChecker : IDynamoDBItemEventHandler
         ArgumentNullException.ThrowIfNull(translationContext);
 
         var versionProperty = TableDescription.Get(typeof(T)).VersionProperty;
-        if (versionProperty != null && !ReferenceEquals(version, DynamoDBExpressions.SkipVersionCheckAndUpdate))
+        if (versionProperty != null && !ReferenceEquals(version, Skip))
         {
             var serializedVersion = translationContext.Serializer.SerializeDynamoDBValue(version);
             var isEmptyInitialVersion = IsEmptyVersionValue(version, versionProperty);

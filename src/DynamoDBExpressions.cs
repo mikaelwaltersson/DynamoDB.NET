@@ -5,29 +5,29 @@ namespace DynamoDB.Net;
 public static class DynamoDBExpressions
 {
     [TranslatesTo("{0} = {1}")]
-    public static bool EqualTo<T>(T left, T right) => DynamoDBMethod<bool>();
+    public static bool EqualTo<T>(T operand1, T operand2) => DynamoDBMethod<bool>();
 
     [TranslatesTo("{0} <> {1}")]
-    public static bool NotEqualTo<T>(T left, T right) => DynamoDBMethod<bool>();
+    public static bool NotEqualTo<T>(T operand1, T operand2) => DynamoDBMethod<bool>();
     
     [TranslatesTo("{0} < {1}")]
-    public static bool LessThan<T>(T left, T right) => DynamoDBMethod<bool>();
+    public static bool LessThan<T>(T operand1, T operand2) => DynamoDBMethod<bool>();
     
     [TranslatesTo("{0} <= {1}")]
-    public static bool LessThanOrEqualTo<T>(T left, T right) => DynamoDBMethod<bool>();
+    public static bool LessThanOrEqualTo<T>(T operand1, T operand2) => DynamoDBMethod<bool>();
 
     [TranslatesTo("{0} > {1}")]
-    public static bool GreaterThan<T>(T left, T right) => DynamoDBMethod<bool>();
+    public static bool GreaterThan<T>(T operand1, T operand2) => DynamoDBMethod<bool>();
 
     [TranslatesTo("{0} >= {1}")]
-    public static bool GreaterThanOrEqualTo<T>(T left, T right) => DynamoDBMethod<bool>();
+    public static bool GreaterThanOrEqualTo<T>(T operand1, T operand2) => DynamoDBMethod<bool>();
 
 
     [TranslatesTo("{0} BETWEEN {1} AND {2}")]
-    public static bool Between<T>(T left, T right, T c) => DynamoDBMethod<bool>();
+    public static bool Between<T>(T operand1, T operand2, T c) => DynamoDBMethod<bool>();
 
     [TranslatesTo("{0} IN ({1})", hasParams: true)]
-    public static bool In<T>(T element, params T[] collection) => DynamoDBMethod<bool>();
+    public static bool In<T>(T operand1, params T[] operands) => DynamoDBMethod<bool>();
 
 
     [TranslatesTo("attribute_exists({0})")]
@@ -85,20 +85,6 @@ public static class DynamoDBExpressions
     public static IEnumerable<T> ListAppend<T>(IEnumerable<T> operand1, IEnumerable<T> operand2) => DynamoDBMethod<IEnumerable<T>>();
 
 
-    public static readonly object SkipVersionCheckAndUpdate = new object();
-
-
-    public const string String = "S";
-    public const string StringSet = "SS";
-    public const string Number = "N";
-    public const string NumberSet = "NS";
-    public const string Binary = "B";
-    public const string BinarySet = "BS";
-    public const string Bool = "BOOL";
-    public const string Null = "NULL";
-    public const string List = "L";
-    public const string Map = "M";
-
     public abstract class RawExpression(string expression)
     {
         internal readonly string expression = expression ?? throw new ArgumentNullException(nameof(expression));
@@ -131,7 +117,7 @@ public static class DynamoDBExpressions
 
     public struct UpdateAction
     {
-        public static UpdateAction operator &(UpdateAction left, UpdateAction right) => DynamoDBMethod<UpdateAction>();
+        public static UpdateAction operator &(UpdateAction operand1, UpdateAction operand2) => DynamoDBMethod<UpdateAction>();
     }
 
     static T DynamoDBMethod<T>() => throw new NotSupportedException();

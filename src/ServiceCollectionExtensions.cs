@@ -16,6 +16,7 @@ public static class ServiceCollectionExtensions
         services.TryAddSingleton<IDynamoDBSerializer, DynamoDBSerializer>();
 
         services.AddScoped<IDynamoDBClient, DynamoDBClient>();
+        services.TryAddSingleton<IDynamoDBItemEventHandler, VersionChecker>();
         
         if (configureOptions != null)
             services.Configure(configureOptions);
