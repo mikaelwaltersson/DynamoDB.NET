@@ -12,16 +12,17 @@ public static class CastConvert
         var fromType = args.Item1;
         var toType = args.Item2;
 
-        if (fromType == toType)
-            return value => value;
-
         var parameter = Expression.Parameter(typeof(object), "value");
         try
         {
-            var casts = new[] { fromType, toType, typeof(object) };
             var compiledCast = 
                 Expression.
-                    Lambda<Func<object?, object?>>(casts.Aggregate((Expression)parameter, Expression.Convert), parameter).
+                    Lambda<Func<object?, object?>>(
+                        Enumerable.Aggregate(
+                            [fromType, toType, typeof(object)], 
+                            (Expression)parameter, 
+                            Expression.Convert), 
+                        parameter).
                     Compile();
 
             return compiledCast;
@@ -33,9 +34,13 @@ public static class CastConvert
     }
 
 
-    public static object? CastTo<T>(this T? value, Type objectType) => 
-        compiledCastTo.GetOrAdd(Tuple.Create(typeof(T), objectType), CompileCastTo)(value);
+    public static object? CastTo<T>(this T? value, Type type) =>
+        typeof(T) == type 
+            ? value 
+            : compiledCastTo.GetOrAdd(Tuple.Create(typeof(T), type), CompileCastTo)(value);
 
-    public static object? CastTo(this object? value, Type objectType) => 
-        compiledCastTo.GetOrAdd(Tuple.Create(value?.GetType() ?? typeof(object), objectType), CompileCastTo)(value);
+    public static object? CastTo(this object? value, Type type) =>
+        value == null || value.GetType() == type 
+            ? value 
+            : compiledCastTo.GetOrAdd(Tuple.Create(value?.GetType() ?? typeof(object), type), CompileCastTo)(value);
 }
