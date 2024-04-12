@@ -74,10 +74,6 @@ public class DynamoDBSerializerTests
         Assert.Equal(
             AttributeTargets.Parameter | AttributeTargets.ReturnValue | AttributeTargets.GenericParameter, 
             Serializer.DeserializeDynamoDBValue<AttributeTargets>(new() { S = "parameter, return_value, generic_parameter" }));
-
-        Assert.Equal(
-            (AttributeTargets)32768, 
-            Serializer.DeserializeDynamoDBValue<AttributeTargets>(new() { S = "32768" }));
     }
 
     [Fact]
@@ -108,6 +104,24 @@ public class DynamoDBSerializerTests
 
         Assert.Null(
             Serializer.DeserializeDynamoDBValue(new() { NULL = true }, typeof(Nullable<>).MakeGenericType(numberType)));
+    }
+
+    [Fact]
+    public void CanDeserializeEnumTypeFromN()
+    {
+        Assert.Equal(
+            (AttributeTargets)32768, 
+            Serializer.DeserializeDynamoDBValue<AttributeTargets>(new() { N = "32768" }));
+    }
+
+    [Fact]
+    public void CanDeserializeAsEnumTypeWithNameTransformFromN()
+    {
+        options.EnumValueNameTransform = NameTransform.SnakeCase;
+
+        Assert.Equal(
+            (AttributeTargets)32768, 
+            Serializer.DeserializeDynamoDBValue<AttributeTargets>(new() { N = "32768" }));
     }
 
     [Fact]
@@ -323,14 +337,26 @@ public class DynamoDBSerializerTests
         Assert.True(
             Serializer.SerializeDynamoDBValue(AttributeTargets.Parameter | AttributeTargets.ReturnValue | AttributeTargets.GenericParameter) 
                 is { S: "parameter, return_value, generic_parameter" });
-
-        Assert.True(Serializer.SerializeDynamoDBValue((AttributeTargets)32768) is { S: "32768" });
     }
 
     [Theory, MemberData(nameof(GetNumberData))]
     public void CanSerializeN(Type numberType, string numberText, object numberValue)
     {
         Assert.True(Serializer.SerializeDynamoDBValue(numberValue, numberType) is { N: var n } && n == numberText);
+    }
+
+    [Fact]
+    public void CanSerializeEnumTypeToN()
+    {
+        Assert.True(Serializer.SerializeDynamoDBValue((AttributeTargets)32768) is { N: "32768" });
+    }
+
+    [Fact]
+    public void CanSerializeEnumTypeWithNameTransformToN()
+    {
+        options.EnumValueNameTransform = NameTransform.SnakeCase;
+
+        Assert.True(Serializer.SerializeDynamoDBValue((AttributeTargets)32768) is { N: "32768" });
     }
 
     [Fact]

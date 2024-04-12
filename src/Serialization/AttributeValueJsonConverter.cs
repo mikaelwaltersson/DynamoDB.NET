@@ -89,6 +89,7 @@ public class AttributeValueJsonConverter : JsonConverter<AttributeValue>
                     value.L.Add(Read(ref reader, typeToConvert, options));
                 }
                 Assert(reader.TokenType is JsonTokenType.EndArray);
+                value.IsLSet = true;
                 break;
 
             case "M":
@@ -103,6 +104,7 @@ public class AttributeValueJsonConverter : JsonConverter<AttributeValue>
                     value.M[property] = Read(ref reader, typeToConvert, options);
                 }
                 Assert(reader.TokenType is JsonTokenType.EndObject);
+                value.IsMSet = true;
                 break;
 
             default:

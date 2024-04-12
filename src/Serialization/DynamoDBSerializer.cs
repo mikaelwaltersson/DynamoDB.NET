@@ -124,7 +124,7 @@ public sealed class DynamoDBSerializer(IOptions<DynamoDBSerializerOptions> optio
                 (type, typeof(T)), 
                 ((Type Type, Type ConverterType) key) =>
                     converters
-                        .Append(DefaultDynamoDBTypeConverter.Instance)
+                        .Append(DynamoDBTypeConverter.Default)
                         .First(converter => 
                             key.ConverterType.IsInstanceOfType(converter) && 
                             converter.Handle(key.Type)));
@@ -163,7 +163,7 @@ public sealed class DynamoDBSerializer(IOptions<DynamoDBSerializerOptions> optio
             ResolveTypeConverter<IConvertFromMap>(toType).ConvertFromMap(entries, toType, serializer);
     
         public bool IsSerializedAsPlainObject(Type type) =>
-            ResolveTypeConverter<IConvertToDynamoDBValue>(type) == DefaultDynamoDBTypeConverter.Instance &&
+            ResolveTypeConverter<IConvertToDynamoDBValue>(type) == DynamoDBTypeConverter.Default &&
             DefaultDynamoDBTypeConverter.IsSerializedAsPlainObject(type);
     }
 }

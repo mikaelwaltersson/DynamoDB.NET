@@ -1,10 +1,11 @@
 using System.Collections.Concurrent;
+using System.Globalization;
 using Amazon.DynamoDBv2.Model;
 
 namespace DynamoDB.Net.Serialization.Converters;
 
 public class EnumTypeConverter
-    : DynamoDBTypeConverter, IConvertFromString, IConvertToDynamoDBValue
+    : DynamoDBTypeConverter, IConvertFromNumber, IConvertFromString, IConvertToDynamoDBValue
 {
     EnumParser parser = new();
 
@@ -16,14 +17,23 @@ public class EnumTypeConverter
 
     public override bool Handle(Type type) => type.UnwrapNullableType().IsEnum;
 
+    public object ConvertFromNumber(string value, Type toType) =>
+        Enum.ToObject(toType, long.Parse(value, CultureInfo.InvariantCulture));
+
     public object ConvertFromString(string value, Type toType) =>
         parser.Parse(value, toType.UnwrapNullableType());
 
-    public AttributeValue ConvertToDynamoDBValue(object? value, Type fromType, IDynamoDBSerializer serializer) =>
-        DefaultDynamoDBTypeConverter.Instance.ConvertToDynamoDBValue(
-            value != null ? parser.Format(value, value.GetType()) : null,
-            typeof(string),
-            serializer);
+    public AttributeValue ConvertToDynamoDBValue(object? value, Type fromType, IDynamoDBSerializer serializer)
+    {
+        if (value == null)
+            return new() { NULL = true };
+
+        var formattedValue = parser.Format(value, value.GetType());
+
+        return formattedValue.All(char.IsDigit)
+            ? new() { N = formattedValue }
+            : new() { S = formattedValue };
+    }
 
     class EnumParser
     {

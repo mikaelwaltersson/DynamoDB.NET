@@ -21,9 +21,11 @@ public class ParsableTypeConverter<T> : ParsableTypeConverter
     public override object ConvertFromString(string value, Type toType) =>
         T.Parse(value, CultureInfo.InvariantCulture);
 
-    public override AttributeValue ConvertToDynamoDBValue(object? value, Type fromType, IDynamoDBSerializer serializer) =>
-        DefaultDynamoDBTypeConverter.Instance.ConvertToDynamoDBValue(
-            value != null ? ((T)value).ToString(Format, CultureInfo.InvariantCulture) : null,
-            typeof(string),
-            serializer);
+    public override AttributeValue ConvertToDynamoDBValue(object? value, Type fromType, IDynamoDBSerializer serializer)
+    {
+        if (value == null)
+            return new() { NULL = true };
+
+        return new() { S = ((T)value).ToString(Format, CultureInfo.InvariantCulture) };
+    }
 }

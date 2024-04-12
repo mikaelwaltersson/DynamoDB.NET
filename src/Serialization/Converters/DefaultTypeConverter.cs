@@ -3,7 +3,7 @@ using Amazon.DynamoDBv2.Model;
 
 namespace DynamoDB.Net.Serialization.Converters;
 
-public sealed class DefaultDynamoDBTypeConverter 
+class DefaultDynamoDBTypeConverter 
     : DynamoDBTypeConverter,
     IConvertFromNull, IConvertFromBoolean, 
     IConvertFromString, IConvertFromNumber, IConvertFromBinary,
@@ -14,12 +14,6 @@ public sealed class DefaultDynamoDBTypeConverter
 {
     readonly ConcurrentDictionary<Type, SerializeToDynamoDBValueDelegate> serializeToDynamoDBValue = [];
     readonly ConcurrentDictionary<Type, DeserializeFromDynamoDBMapDelegate> deserializeFromDynamoDBMap = [];
-
-    DefaultDynamoDBTypeConverter()
-    {
-    }
-
-    public static DefaultDynamoDBTypeConverter Instance { get; } = new();
 
     public override bool Handle(Type type) => 
         true;
