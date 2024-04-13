@@ -21,7 +21,7 @@ public class DynamoDBSerializerOptions
 
     public bool SerializeDefaultValues { get; set; }
 
-    public Func<Type, bool>? SerializeDefaultValuesFor { get; set; }
+    public SerializeDefaultValuesForDelegate? SerializeDefaultValuesFor { get; set; }
 
     public bool SerializeNullValues { get; set; }
 

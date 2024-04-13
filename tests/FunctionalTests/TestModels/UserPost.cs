@@ -15,12 +15,12 @@ public class UserPost
 
     public string? Content { get; set; }
 
-    [SortKey(LocalSecondaryIndex = 1)]
+    [SortKey(LocalSecondaryIndex = 0)]
     public int Priority { get; set; }
 
     public SortedSet<string> Tags { get; set; } = [];
 
-    [PartitionKey(GlobalSecondaryIndex = 1)]
+    [PartitionKey(GlobalSecondaryIndex = 0)]
     public string? ExternalId { get; set; }
 
     [Version]

@@ -13,7 +13,7 @@ public sealed class DynamoDBSerializer(IOptions<DynamoDBSerializerOptions> optio
     readonly NameTransform attributeNameTransform = options.Value.AttributeNameTransform;
     readonly ResolvedTypeConverter typeConverter = new([.. options.Value.TypeConverters]);
     readonly bool serializeDefaultValues = options.Value.SerializeDefaultValues;
-    readonly Func<Type, bool>? serializeDefaultValuesFor = options.Value.SerializeDefaultValuesFor;
+    readonly SerializeDefaultValuesForDelegate? serializeDefaultValuesFor = options.Value.SerializeDefaultValuesFor;
     readonly bool serializeNullValues = options.Value.SerializeNullValues;
     readonly DynamoDBObjectTypeNameResolver objectTypeNameResolver = options.Value.ObjectTypeNameResolver;
     readonly IEnumerable<IOnDeserializeProperty> onDeserializeProperty = [.. options.Value.OnDeserializeProperty];

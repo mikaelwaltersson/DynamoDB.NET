@@ -22,13 +22,8 @@ public class TableDescription
         SortKeyProperty = GetIndexKeyProperty<SortKeyAttribute>(type);
         VersionProperty = GetVersionProperty(type);
         LocalSecondaryIndexSortKeyProperties = GetSecondaryIndexKeyProperties<SortKeyAttribute>(type, IndexType.LocalSecondaryIndex);
-        GlobalSecondaryIndexPartitionKeyProperties = GetSecondaryIndexKeyProperties<PartitionKeyAttribute>(type, IndexType.GlobalSecondaryIndex);
         GlobalSecondaryIndexSortKeyProperties = GetSecondaryIndexKeyProperties<SortKeyAttribute>(type, IndexType.GlobalSecondaryIndex);
-
-        FallBackToPrimaryPartitionKey(
-            GlobalSecondaryIndexPartitionKeyProperties,
-            GlobalSecondaryIndexSortKeyProperties,
-            PartitionKeyProperty);
+        GlobalSecondaryIndexPartitionKeyProperties = GetSecondaryIndexKeyProperties<PartitionKeyAttribute>(type, IndexType.GlobalSecondaryIndex, GlobalSecondaryIndexSortKeyProperties);
     }
 
     public string TableName { get; }
@@ -205,8 +200,8 @@ public class TableDescription
             type.GetSerializablePropertiesAndFields().Where(property => property.HasCustomAttribute<VersionAttribute>()).ToArray(), 
             typeof(Version).Name);
 
-    static MemberInfo?[] GetSecondaryIndexKeyProperties<TAttribute>(Type type, IndexType indexType) where TAttribute : IndexKeyAttribute =>
-        GetIndexOrdinals(indexType).Select(ordinal => GetIndexKeyProperty<TAttribute>(type, indexType, ordinal)).ToArray();
+    static MemberInfo?[] GetSecondaryIndexKeyProperties<TAttribute>(Type type, IndexType indexType, MemberInfo?[]? relatedIndexProperties = null) where TAttribute : IndexKeyAttribute =>
+        GetIndexOrdinals(indexType).Select((ordinal, i) => GetIndexKeyProperty<TAttribute>(type, indexType, ordinal, required: relatedIndexProperties?[i] is not null)).ToArray();
 
     static MemberInfo? ValidSingleResolvedPropertyResult(Type type, MemberInfo[] properties, string attributeDescription, bool required = false)
     {
