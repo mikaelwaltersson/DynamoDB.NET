@@ -506,6 +506,17 @@ public class DynamoDBSerializerTests
     }
 
     [Fact]
+    public void CanSerializePlainObjectWithDefaultValuesForTypeIncludedToM()
+    {
+        options.SerializeDefaultValuesFor = type => type == typeof(long);
+        
+        Assert.True(
+            Serializer.SerializeDynamoDBValue(new PlainObjectWithNullValues { Key = 1 }) is { IsMSet: true, M: { Count: 2 } attributes } &&
+            attributes.GetValueOrDefault("Key") is { N: "1" } && 
+            attributes.GetValueOrDefault("Number") is { N: "0" });
+    }
+
+    [Fact]
     public void CanSerializePlainObjectFromBaseTypeToM()
     {
         Assert.True(

@@ -21,6 +21,8 @@ public class DynamoDBSerializerOptions
 
     public bool SerializeDefaultValues { get; set; }
 
+    public Func<Type, bool>? SerializeDefaultValuesFor { get; set; }
+
     public bool SerializeNullValues { get; set; }
 
     public DynamoDBObjectTypeNameResolver ObjectTypeNameResolver { get; set; } = DynamoDBObjectTypeNameResolver.Default;
