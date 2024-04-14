@@ -57,7 +57,7 @@ static class DynamoDBList
     class ListFactory<TElement> : IListFactory, IListFromArrayFactory
     {
         public object CreateList(List<AttributeValue> elements, IDynamoDBSerializer serializer) =>
-            new List<TElement>(elements.Select(serializer.DeserializeDynamoDBValue<TElement>).Cast<TElement>());
+            new List<TElement>(elements.Select((value, i) => serializer.DeserializeDynamoDBValue<TElement>(value, pathElement: i.ToString())).Cast<TElement>());
 
         public object CreateList(Array array) =>
             new List<TElement>(array.Cast<TElement>());
@@ -69,8 +69,8 @@ static class DynamoDBList
         {
             var list = new TList();
 
-            foreach (var value in elements)
-                list.Add(serializer.DeserializeDynamoDBValue<TElement>(value)!);
+            for (var i = 0; i < elements.Count; i++)
+                list.Add(serializer.DeserializeDynamoDBValue<TElement>(elements[i], pathElement: i.ToString())!);
 
             return list;
         }

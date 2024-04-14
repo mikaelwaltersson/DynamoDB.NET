@@ -165,11 +165,11 @@ class DefaultDynamoDBTypeConverter
 
             if (Activator.IsConstructable(type))
                 return Deserializer.Create(typeof(DictionaryDeserializer<,,>), type, keyType, valueType);
-
-            throw new DynamoDBSerializationException($"Type not supported: {type}");
         }
-        
-        return PlainObjectDeserializer.ForObjectType(type).FromDynamoDBMap;
+        else if (IsSerializedAsPlainObject(type))
+            return PlainObjectDeserializer.ForObjectType(type).FromDynamoDBMap;
+
+        throw new DynamoDBSerializationException($"Type can not be deserialized from map: {type}");
     }
 
     static AttributeValue ConvertToNull() => 
@@ -371,7 +371,7 @@ class DefaultDynamoDBTypeConverter
             if (!entries.TryGetValue(partitionKeyInfo.AttributeName, out var partitionKeyValue))
                 throw MissingRequiredAttribute(typeof(PrimaryKey<T>), partitionKeyInfo.AttributeName);
 
-            var partitionKey = serializer.DeserializeDynamoDBValue(partitionKeyValue, TableDescription.PropertyTypes<T>.PartitionKey);
+            var partitionKey = serializer.DeserializeDynamoDBValue(partitionKeyValue, TableDescription.PropertyTypes<T>.PartitionKey, pathElement: partitionKeyInfo.AttributeName);
             var sortKey = default(object?);
 
             if (TableDescription.Properties<T>.SortKey != null)
@@ -380,7 +380,7 @@ class DefaultDynamoDBTypeConverter
                 if (!entries.TryGetValue(sortKeyInfo.AttributeName, out var sortKeyInfoValue))
                     throw MissingRequiredAttribute(typeof(PrimaryKey<T>), sortKeyInfo.AttributeName);
 
-                sortKey = serializer.DeserializeDynamoDBValue(sortKeyInfoValue, TableDescription.PropertyTypes<T>.SortKey!);   
+                sortKey = serializer.DeserializeDynamoDBValue(sortKeyInfoValue, TableDescription.PropertyTypes<T>.SortKey!, pathElement: partitionKeyInfo.AttributeName);   
             }
 
             return PrimaryKey<T>.FromTuple((partitionKey, sortKey));  
@@ -396,13 +396,13 @@ class DefaultDynamoDBTypeConverter
             var dictionary = new TDictionary();
 
             foreach (var entry in entries)
-                dictionary.Add(DeserializeKey(entry.Key, serializer), serializer.DeserializeDynamoDBValue<TValue>(entry.Value)!);
+                dictionary.Add(DeserializeKey(entry.Key, serializer), serializer.DeserializeDynamoDBValue<TValue>(entry.Value, pathElement: entry.Key)!);
 
             return dictionary;
         }
 
         TKey DeserializeKey(string key, IDynamoDBSerializer serializer) =>
-            serializer.DeserializeDynamoDBValue<TKey>(PreDeserializeFormatKey(key))!;
+            serializer.DeserializeDynamoDBValue<TKey>(PreDeserializeFormatKey(key), pathElement: key)!;
 
         Func<string, AttributeValue> PreDeserializeFormatKey { get; } =
             typeof(TKey) == typeof(byte[])
@@ -464,7 +464,7 @@ class DefaultDynamoDBTypeConverter
             {
                 if (entries.TryGetValue(attributeInfo.AttributeName, out var value))
                 {
-                    var deserializedValue = serializer.DeserializeDynamoDBValue(value, property.Type);
+                    var deserializedValue = serializer.DeserializeDynamoDBValue(value, property.Type, pathElement: attributeInfo.AttributeName);
                     
                     attributeInfo.SetPropertyValue(targetObject, property.Name, deserializedValue, property.SetValue);
                 }
@@ -479,7 +479,7 @@ class DefaultDynamoDBTypeConverter
         public static object? ForNull(Type toType)
         {
             if (toType.IsValueType && Nullable.GetUnderlyingType(toType) == null)
-                throw new DynamoDBSerializationException($"Type '{toType}' is not nullable");
+                throw new DynamoDBSerializationException($"Type can not be deserialized from null: {toType}");
 
             return null;
         }
@@ -487,7 +487,7 @@ class DefaultDynamoDBTypeConverter
         public static object ForValue<T>(T value, Type toType) where T : notnull
         {
             if (!toType.IsAssignableFrom(typeof(T)))
-                throw new DynamoDBSerializationException($"Invalid type cast '{typeof(T).FullName}' to '{toType.FullName}'");
+                throw new DynamoDBSerializationException($"Type can not be deserialized from {typeof(T).Name}: {toType.FullName}");
 
             return value;
         }

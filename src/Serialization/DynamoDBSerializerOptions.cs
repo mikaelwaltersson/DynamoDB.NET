@@ -2,7 +2,7 @@ using DynamoDB.Net.Serialization.Converters;
 
 namespace DynamoDB.Net.Serialization;
 
-public class DynamoDBSerializerOptions
+public record DynamoDBSerializerOptions
 {
     public NameTransform AttributeNameTransform { get; set; } = NameTransform.Default;
 

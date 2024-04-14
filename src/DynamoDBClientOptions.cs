@@ -1,6 +1,6 @@
 ﻿namespace DynamoDB.Net;
 
-public class DynamoDBClientOptions
+public record DynamoDBClientOptions
 {
     public string TableNamePrefix { get; set; } = string.Empty;
     

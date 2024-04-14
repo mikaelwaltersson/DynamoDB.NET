@@ -555,6 +555,55 @@ public class DynamoDBSerializerTests
                 Serializer.DeserializeDynamoDBValue<ObjectWithReadOnlyProperty>(new() { M = new() { ["ReadOnly"] = new() { S = "" } } })).Message);
     }
 
+    [Fact]
+    public void DeserializationExceptionContainsPath()
+    {
+        Assert.Equal(
+            "$.Children",
+            Assert.Throws<DynamoDBSerializationException>(() => 
+                Serializer.DeserializeDynamoDBValue<PlainObjectWithChildren>(
+                    new()
+                    {
+                        M = new() { ["Children"] = new() { S = "X" } }
+                    }))
+                    .Path);
+
+        Assert.Equal(
+            "$.Children[0].Number",
+            Assert.Throws<DynamoDBSerializationException>(() => 
+                Serializer.DeserializeDynamoDBValue<PlainObjectWithChildren>(
+                    new()
+                    {
+                        M = new() 
+                        { 
+                            ["Children"] = new() 
+                            { 
+                                L = [new() { M = new() { ["Number"] = new() { B = new([1, 2, 3]) } } }] 
+                            } 
+                        }
+                    }))
+                    .Path);
+
+        Assert.Equal(
+            "$.Children[0].Values[\"$X\"]",
+            Assert.Throws<DynamoDBSerializationException>(() => 
+                Serializer.DeserializeDynamoDBValue<PlainObjectWithChildren>(
+                    new()
+                    {
+                        M = new() 
+                        { 
+                            ["Children"] = new() 
+                            { 
+                                L = [new() 
+                                { 
+                                    M = new() { ["Values"] = new() { M = new() { ["$X"] = new() { B = new([]) } } } } 
+                                }] 
+                            } 
+                        }
+                    }))
+                    .Path);
+    }
+
     static IEnumerable<object[]> GetNumberData() =>
         [
             [typeof(decimal), "123.456", 123.456M],
@@ -620,6 +669,23 @@ public class DynamoDBSerializerTests
         public long Number { get; set; }
     }
 
+    [Table]
+    record class PlainObjectWithChildren
+    {
+        [PartitionKey]
+        public int Key { get; set; }
+
+        public string? Text { get; set; }
+
+        public List<ChildObject> Children { get; set; } = [];
+    }
+
+    public class ChildObject
+    {
+        public long Number { get; set; }
+
+        public Dictionary<string, string> Values = [];
+    }
 
     class ObjectWithReadOnlyProperty
     {

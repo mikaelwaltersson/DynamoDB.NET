@@ -21,7 +21,9 @@ class GenericTypeInfo
 
         if (ImplementsGenericTypeDefinition(type, typeof(IParsable<>), out var parsableArguments) && 
             type == parsableArguments[0] &&
-            typeof(IFormattable).IsAssignableFrom(type))
+            typeof(IFormattable).IsAssignableFrom(type) &&
+            type != typeof(bool) &&
+            !DynamoDBNumber.IsSupportedType(type))
             ParsableTypeConverter = (ParsableTypeConverter)Activator.CreateInstance(typeof(ParsableTypeConverter<>).MakeGenericType(type));
     }
 
