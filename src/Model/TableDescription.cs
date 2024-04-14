@@ -219,15 +219,6 @@ public class TableDescription
         return properties[0];
     }
 
-    static void FallBackToPrimaryPartitionKey(MemberInfo?[] indexPartitionKeyProperties, MemberInfo?[] indexSortKeyProperties, MemberInfo primaryPartitionKey)
-    {
-        for (var i = 0; i < indexPartitionKeyProperties.Length; i++)
-        {
-            if (indexPartitionKeyProperties[i] == null && indexSortKeyProperties[i] != null)
-                indexPartitionKeyProperties[i] = primaryPartitionKey;
-        }
-    }
-
     static string ApplyTableNamePrefixAndMapping(DynamoDBClientOptions? options, string tableName) => 
         options == null
             ? tableName
