@@ -267,6 +267,14 @@ public class DynamoDBSerializerTests
     }
 
     [Fact]
+    public void CanDeserializePlainObjectAsAbstractBaseTypeFromM()
+    {
+        Assert.Equal(
+            new PlainObject { Number = 1, Text = "One" },
+            Serializer.DeserializeDynamoDBValue<PlainObjectBase>(new() { M = new() { ["$type"] = new() { S = typeof(PlainObject).AssemblyQualifiedName }, ["Number"] = new() { N = "1" }, ["Text"] = new() { S = "One" } } }));
+    }
+
+    [Fact]
     public void CanDeserializePlainObjectWithAttributeOverridesFromM()
     {
         Assert.Equal(
@@ -528,6 +536,17 @@ public class DynamoDBSerializerTests
     }
 
     [Fact]
+    public void CanSerializePlainObjectFromAbstractBaseTypeToM()
+    {
+        Assert.True(
+            Serializer.SerializeDynamoDBValue(new PlainObject { Number = 2, Text = "Two" }, typeof(PlainObjectBase)) is { IsMSet: true, M: { Count: 3 } attributes } &&
+            attributes.GetValueOrDefault("$type") is { S: var typeName } && 
+            attributes.GetValueOrDefault("Number") is { N: "2" } && 
+            attributes.GetValueOrDefault("Text") is { S: "Two" } && 
+            typeName == typeof(PlainObject).AssemblyQualifiedName);
+    }
+
+    [Fact]
     public void CanSerializePlainObjectWithAttributeOverridesToM()
     {
         Assert.True(
@@ -637,8 +656,12 @@ public class DynamoDBSerializerTests
     }
 
 
+    abstract record PlainObjectBase
+    {
+    }
+
     [Table]
-    record class PlainObject
+    record PlainObject : PlainObjectBase
     {
         [PartitionKey]
         public int Number { get; set; }
@@ -648,7 +671,7 @@ public class DynamoDBSerializerTests
     }
 
     [Table]
-    record class PlainObjectWithFields
+    record PlainObjectWithFields
     {
         [PartitionKey]
         public int Number;
@@ -659,7 +682,7 @@ public class DynamoDBSerializerTests
 
 
     [Table]
-    record class PlainObjectWithNullValues
+    record PlainObjectWithNullValues
     {
         [PartitionKey]
         public int Key { get; set; }
@@ -670,7 +693,7 @@ public class DynamoDBSerializerTests
     }
 
     [Table]
-    record class PlainObjectWithChildren
+    record PlainObjectWithChildren
     {
         [PartitionKey]
         public int Key { get; set; }
@@ -697,7 +720,7 @@ public class DynamoDBSerializerTests
         public string WriteOnly { set { } }
     }
 
-    record class Book
+    record Book
     {
         [DynamoDBProperty(AttributeName = "isbn #")]
         public required string Isbn { get; set; }

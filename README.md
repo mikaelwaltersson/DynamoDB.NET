@@ -3,7 +3,7 @@
 Easy to use and performant DynamoDB libary for .NET Core  
 
 
-## 1.0.0-rc-12
+## 1.0.0-rc-13
 
 I created the library back in 2016 as an alternative to the "high level" [AWS SDK DynamoDB library](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/DotNetSDKHighLevel.html) that in my opionion had quite bad developer experience, no high level support for query/scan filters, reflection based (slow) serialization etc. It has since been used in both commercial and non-commercial products.  
 

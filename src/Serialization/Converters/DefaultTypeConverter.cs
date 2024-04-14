@@ -92,7 +92,7 @@ class DefaultDynamoDBTypeConverter
         if (typeInfo.IsDictionaryType)
             return false;
 
-        return Activator.IsConstructable(type);
+        return Activator.IsConstructable(type) || type.IsAbstract;
     }
 
     internal static bool IsSerializedAttributeValue(DynamoDBAttributeInfo attributeInfo, Type propertyType, object? sourceValue) =>    
