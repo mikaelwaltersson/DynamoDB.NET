@@ -1,0 +1,147 @@
+﻿{
+  "storedItems": [
+    {
+      "Table": "accounts",
+      "Items": [
+        {
+          "accountStatus": {
+            "S": "terminated"
+          },
+          "dateOpened": {
+            "S": "2024-01-20"
+          },
+          "notes": {
+            "L": [
+              {
+                "S": "Account has been terminated and transactions"
+              }
+            ]
+          },
+          "balance": {
+            "N": "0"
+          },
+          "accountName": {
+            "S": "Transaction Account"
+          },
+          "$version": {
+            "N": "1"
+          },
+          "accountNumber": {
+            "S": "123001-13330002"
+          },
+          "userId": {
+            "S": "4f7e4ea9-c642-43da-9c8b-169dc6a03824"
+          },
+          "$type": {
+            "S": "DynamoDB.Net.Tests.FunctionalTests.Common.Models.Account, DynamoDB.Net.Tests, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null"
+          }
+        },
+        {
+          "accountStatus": {
+            "S": "active"
+          },
+          "dateOpened": {
+            "S": "2024-01-20"
+          },
+          "balance": {
+            "N": "2700"
+          },
+          "accountName": {
+            "S": "Savings Account"
+          },
+          "$version": {
+            "N": "1"
+          },
+          "accountNumber": {
+            "S": "123001-13330001"
+          },
+          "userId": {
+            "S": "4f7e4ea9-c642-43da-9c8b-169dc6a03824"
+          },
+          "$type": {
+            "S": "DynamoDB.Net.Tests.FunctionalTests.Common.Models.Account, DynamoDB.Net.Tests, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null"
+          }
+        },
+        {
+          "accountStatus": {
+            "S": "active"
+          },
+          "dateOpened": {
+            "S": "2024-01-27"
+          },
+          "balance": {
+            "N": "300"
+          },
+          "accountName": {
+            "S": "Transaction Account"
+          },
+          "$version": {
+            "N": "1"
+          },
+          "accountNumber": {
+            "S": "123001-13330003"
+          },
+          "userId": {
+            "S": "4f7e4ea9-c642-43da-9c8b-169dc6a03824"
+          },
+          "$type": {
+            "S": "DynamoDB.Net.Tests.FunctionalTests.Common.Models.Account, DynamoDB.Net.Tests, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null"
+          }
+        }
+      ]
+    },
+    {
+      "Table": "transactions",
+      "Items": [
+        {
+          "transactionType": {
+            "S": "transfer"
+          },
+          "fromAccountNumber": {
+            "S": "123001-13330001"
+          },
+          "amount": {
+            "N": "300"
+          },
+          "toAccountNumber": {
+            "S": "123001-13330003"
+          },
+          "$version": {
+            "N": "1"
+          },
+          "transactionDate": {
+            "S": "2024-01-27"
+          },
+          "transactionId": {
+            "S": "6f708458-1e2a-4393-b69c-22b03455f5b9"
+          },
+          "timeOfDay": {
+            "S": "10:27:26.0000000"
+          }
+        }
+      ]
+    },
+    {
+      "Table": "users",
+      "Items": [
+        {
+          "fullName": {
+            "S": "John Doe"
+          },
+          "userStatus": {
+            "S": "active"
+          },
+          "userId": {
+            "S": "4f7e4ea9-c642-43da-9c8b-169dc6a03824"
+          },
+          "$type": {
+            "S": "DynamoDB.Net.Tests.FunctionalTests.Common.Models.User, DynamoDB.Net.Tests, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null"
+          },
+          "username": {
+            "S": "johndoe"
+          }
+        }
+      ]
+    }
+  ]
+}

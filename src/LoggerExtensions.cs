@@ -2,6 +2,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Amazon.DynamoDBv2;
+using Amazon.DynamoDBv2.Model;
 using Amazon.Runtime;
 
 using Microsoft.Extensions.Logging;
@@ -24,9 +25,22 @@ static partial class LoggerExtensions
 
     [LoggerMessage(
         EventId = 3,
+        Level = LogLevel.Debug,
+        Message = "DynamoDB operation failed due to conditional check.")]
+    public static partial void ConditionalCheckFailed(this ILogger<DynamoDBClient> logger, ConditionalCheckFailedException ex);
+
+    [LoggerMessage(
+        EventId = 4,
+        Level = LogLevel.Debug,
+        Message = "DynamoDB transaction canceled.")]
+    public static partial void TransactionCanceled(this ILogger<DynamoDBClient> logger, TransactionCanceledException ex);
+
+    [LoggerMessage(
+        EventId = 5,
         Level = LogLevel.Error,
         Message = "Error invoking DynamoDB operation: {ErrorCode}")]
     public static partial void InvokeFailed(this ILogger<DynamoDBClient> logger, Exception ex, string errorCode);
+
 
     [ExcludeFromCodeCoverage]
     internal class FormatAsJson<T> where T : notnull

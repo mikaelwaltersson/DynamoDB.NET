@@ -5,24 +5,24 @@ namespace DynamoDB.Net;
 
 public interface IDynamoDBWriteTransaction
 {
-    void Put<T>(
+    IDynamoDBWriteTransaction Put<T>(
         T item, 
         Expression<Func<T, bool>>? condition = null) where T : class;
     
-    void Put<T>(
+    IDynamoDBWriteTransaction Put<T>(
         T item, 
         Expression<Func<bool>> condition) where T : class =>
         Put(
             item, 
             condition?.ReplaceConstantWithParameter(item));
             
-    void Update<T>(
+    IDynamoDBWriteTransaction Update<T>(
         PrimaryKey<T> key, 
         Expression<Func<T, DynamoDBExpressions.UpdateAction>> update, 
         Expression<Func<T, bool>>? condition = null, 
         object? version = null) where T : class;
 
-    void Update<T>(
+    IDynamoDBWriteTransaction Update<T>(
         T item,
         Expression<Func<DynamoDBExpressions.UpdateAction>> update,
         Expression<Func<bool>>? condition = null, 
@@ -33,12 +33,12 @@ public interface IDynamoDBWriteTransaction
             condition?.ReplaceConstantWithParameter(item),
             version);
 
-    void Delete<T>(
+    IDynamoDBWriteTransaction Delete<T>(
         PrimaryKey<T> key, 
         Expression<Func<T, bool>>? condition = null, 
         object? version = null) where T : class;
 
-    void Delete<T>(
+    IDynamoDBWriteTransaction Delete<T>(
         T item,
         Expression<Func<bool>>? condition = null, 
         object? version = null) where T : class => 
@@ -47,12 +47,12 @@ public interface IDynamoDBWriteTransaction
             condition?.ReplaceConstantWithParameter(item),
             version);
 
-    void ConditionCheck<T>(
+    IDynamoDBWriteTransaction ConditionCheck<T>(
         PrimaryKey<T> key, 
         Expression<Func<T, bool>> condition, 
         object? version = null) where T : class;
 
-    void ConditionCheck<T>(
+    IDynamoDBWriteTransaction ConditionCheck<T>(
         T item, 
         Expression<Func<bool>> condition, 
         object? version = null) where T : class =>

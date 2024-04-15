@@ -4,13 +4,13 @@ using DynamoDB.Net.Serialization;
 
 namespace DynamoDB.Net.Tests;
 
-public static class Snapshot
+public static class Extensions
 {
-    public static void Match(object? value) =>
-        Snapshooter.Xunit.Snapshot.Match(value.ToSnapshotFriendlyObject());
+    public static object? ToSnapshotFriendlyObject(this object? value)
+    {
+        if (value is List<(string Table, List<Dictionary<string, AttributeValue>> Items)> dynamoDBItemListPerTable)
+            return dynamoDBItemListPerTable.Select(entry => new { entry.Table, Items = ToSnapshotFriendlyObject(entry.Items) }).ToList();
 
-     static object? ToSnapshotFriendlyObject<T>(this T value)
-     {
         if (value is List<Dictionary<string, AttributeValue>> dynamoDBItemList)
             return dynamoDBItemList.Select(ToSnapshotFriendlyObject).ToList();
         
@@ -54,5 +54,5 @@ public static class Snapshot
             return jsonNode.ToJsonString(new() { WriteIndented = true });
 
         return value;
-     }
+    }
 }

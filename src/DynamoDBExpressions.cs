@@ -1,5 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Linq.Expressions;
+using System.Runtime.CompilerServices;
 
 namespace DynamoDB.Net;
 
@@ -135,5 +136,6 @@ public static class DynamoDBExpressions
         public static UpdateAction operator &(UpdateAction operand1, UpdateAction operand2) => DynamoDBMethod<UpdateAction>();
     }
 
-    static T DynamoDBMethod<T>() => throw new NotSupportedException();
+    static T DynamoDBMethod<T>([CallerMemberName] string? caller = null) => 
+        throw new InvalidOperationException($"Invalid usage of DynamoDBExpressions.{caller}(...), are all argument non-parameter values?");
 }

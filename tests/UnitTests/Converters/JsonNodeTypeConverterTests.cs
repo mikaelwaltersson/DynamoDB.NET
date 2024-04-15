@@ -17,7 +17,8 @@ public class JsonNodeTypeConverterTests
         Snapshot.Match(
             serializer.SerializeDynamoDBValue(
                 JsonNode.Parse("""{ "foo": [null, true, false, 1, "2", ["3", "4"]], "bar": "SGVsbG9Xb3JsZAo=" }"""),
-                typeof(JsonNode)));
+                typeof(JsonNode))
+                .ToSnapshotFriendlyObject());
     }
 
     [Fact]
@@ -44,6 +45,7 @@ public class JsonNodeTypeConverterTests
                         ["bar"] = new() { B = new(Encoding.ASCII.GetBytes("HelloWorld")) }
                     }
                 },
-                typeof(JsonNode)));
+                typeof(JsonNode))
+                .ToSnapshotFriendlyObject());
     }
 }

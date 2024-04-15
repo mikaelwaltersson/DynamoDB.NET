@@ -366,15 +366,22 @@ public class DynamoDBClient : IDynamoDBClient
 
             return response;
         }
+        catch (ConditionalCheckFailedException ex)
+        {
+            logger.ConditionalCheckFailed(ex);    
+            throw;
+        }
+        catch (TransactionCanceledException ex)
+        {
+            logger.TransactionCanceled(ex);    
+            throw;
+        }
         catch (AmazonDynamoDBException ex)
         {
-            if (ex is not ConditionalCheckFailedException)
-                logger.InvokeFailed(ex, ex.ErrorCode);
-                
+            logger.InvokeFailed(ex, ex.ErrorCode);    
             throw;
         }
     } 
-
 
     class PartialResult<T> : IDynamoDBPartialResult<T> where T : class
     {
@@ -410,16 +417,16 @@ public class DynamoDBClient : IDynamoDBClient
             this.transactItems = new List<TransactWriteItem>();
         }
 
-        public void Put<T>(T item, Expression<Func<T, bool>>? condition = null) where T : class =>
+        public IDynamoDBWriteTransaction Put<T>(T item, Expression<Func<T, bool>>? condition = null) where T : class =>
             Add(new TransactWriteItem { Put = this.dynamoDBClient.CreatePutOperation(item, condition) });
 
-        public void Update<T>(PrimaryKey<T> key, Expression<Func<T, DynamoDBExpressions.UpdateAction>> update, Expression<Func<T, bool>>? condition = null, object? version = null) where T : class =>
+        public IDynamoDBWriteTransaction Update<T>(PrimaryKey<T> key, Expression<Func<T, DynamoDBExpressions.UpdateAction>> update, Expression<Func<T, bool>>? condition = null, object? version = null) where T : class =>
             Add(new TransactWriteItem { Update = this.dynamoDBClient.CreateUpdateOperation(key, update, condition, version) });
 
-        public void Delete<T>(PrimaryKey<T> key, Expression<Func<T, bool>>? condition = null, object? version = null) where T : class =>
+        public IDynamoDBWriteTransaction Delete<T>(PrimaryKey<T> key, Expression<Func<T, bool>>? condition = null, object? version = null) where T : class =>
             Add(new TransactWriteItem { Delete = this.dynamoDBClient.CreateDeleteOperation(key, condition, version) });
 
-        public void ConditionCheck<T>(PrimaryKey<T> key, Expression<Func<T, bool>> condition, object? version = null) where T : class =>
+        public IDynamoDBWriteTransaction ConditionCheck<T>(PrimaryKey<T> key, Expression<Func<T, bool>> condition, object? version = null) where T : class =>
             Add(new TransactWriteItem { ConditionCheck = this.dynamoDBClient.CreateConditionCheckOperation(key, condition, version) });
 
         public async Task CommitAsync(CancellationToken cancellationToken = default)
@@ -438,11 +445,12 @@ public class DynamoDBClient : IDynamoDBClient
             await this.dynamoDBClient.Invoke(client.TransactWriteItemsAsync, request, cancellationToken);
         }
 
-        void Add(TransactWriteItem item)
+        IDynamoDBWriteTransaction Add(TransactWriteItem item)
         {
             AssertIsNotCommitted();
 
             this.transactItems.Add(item);
+            return this;
         }
 
         void AssertIsNotCommitted()

@@ -1,0 +1,232 @@
+﻿{
+  "user": {
+    "UserId": "4f7e4ea9-c642-43da-9c8b-169dc6a03824",
+    "UserStatus": "Active",
+    "Username": "johndoe",
+    "FullName": "John Doe",
+    "ItemVersion": 1
+  },
+  "account1": {
+    "AccountNumber": "123001-13330001",
+    "AccountStatus": "Active",
+    "UserId": "4f7e4ea9-c642-43da-9c8b-169dc6a03824",
+    "AccountName": "Savings Account",
+    "DateOpened": "2024-01-20",
+    "Balance": 2500.0,
+    "ItemVersion": 1,
+    "Notes": null
+  },
+  "account2": {
+    "AccountNumber": "123001-13330002",
+    "AccountStatus": "Active",
+    "UserId": "4f7e4ea9-c642-43da-9c8b-169dc6a03824",
+    "AccountName": "Transaction Account",
+    "DateOpened": "2024-01-27",
+    "Balance": 450.54,
+    "ItemVersion": 1,
+    "Notes": null
+  },
+  "transaction1": {
+    "TransactionId": "70c0712e-276e-43d1-9dc4-db776cf24590",
+    "FromAccountNumber": null,
+    "ToAccountNumber": "123001-13330001",
+    "TransactionDate": "2024-01-20",
+    "TimeOfDay": "15:23",
+    "Amount": 3000.0,
+    "TransactionType": "Deposit",
+    "ItemVersion": 1
+  },
+  "transaction2": {
+    "TransactionId": "ab92a927-8c47-4d9d-addc-69ec4aaa6754",
+    "FromAccountNumber": "123001-13330001",
+    "ToAccountNumber": "123001-13330002",
+    "TransactionDate": "2024-01-27",
+    "TimeOfDay": "10:15",
+    "Amount": 500.0,
+    "TransactionType": "Transfer",
+    "ItemVersion": 1
+  },
+  "transaction3": {
+    "TransactionId": "b3340941-f00e-4cc8-9d5f-8d07b3075f16",
+    "FromAccountNumber": "123001-13330002",
+    "ToAccountNumber": null,
+    "TransactionDate": "2024-01-27",
+    "TimeOfDay": "18:55",
+    "Amount": 49.46,
+    "TransactionType": "Purchase",
+    "ItemVersion": 1
+  },
+  "userNotification": {
+    "UserId": "4f7e4ea9-c642-43da-9c8b-169dc6a03824",
+    "Timestamp": "2024-01-27T10:15:35+00:00",
+    "Message": "Your accounts will soon be available."
+  },
+  "storedItems": [
+    {
+      "Table": "accounts",
+      "Items": [
+        {
+          "accountStatus": {
+            "S": "active"
+          },
+          "dateOpened": {
+            "S": "2024-01-27"
+          },
+          "balance": {
+            "N": "450.54"
+          },
+          "accountName": {
+            "S": "Transaction Account"
+          },
+          "$version": {
+            "N": "1"
+          },
+          "accountNumber": {
+            "S": "123001-13330002"
+          },
+          "userId": {
+            "S": "4f7e4ea9-c642-43da-9c8b-169dc6a03824"
+          }
+        },
+        {
+          "accountStatus": {
+            "S": "active"
+          },
+          "dateOpened": {
+            "S": "2024-01-20"
+          },
+          "balance": {
+            "N": "2500"
+          },
+          "accountName": {
+            "S": "Savings Account"
+          },
+          "$version": {
+            "N": "1"
+          },
+          "accountNumber": {
+            "S": "123001-13330001"
+          },
+          "userId": {
+            "S": "4f7e4ea9-c642-43da-9c8b-169dc6a03824"
+          }
+        }
+      ]
+    },
+    {
+      "Table": "transactions",
+      "Items": [
+        {
+          "transactionType": {
+            "S": "transfer"
+          },
+          "fromAccountNumber": {
+            "S": "123001-13330001"
+          },
+          "amount": {
+            "N": "500"
+          },
+          "toAccountNumber": {
+            "S": "123001-13330002"
+          },
+          "$version": {
+            "N": "1"
+          },
+          "transactionDate": {
+            "S": "2024-01-27"
+          },
+          "transactionId": {
+            "S": "ab92a927-8c47-4d9d-addc-69ec4aaa6754"
+          },
+          "timeOfDay": {
+            "S": "10:15:35.0000000"
+          }
+        },
+        {
+          "transactionType": {
+            "S": "deposit"
+          },
+          "amount": {
+            "N": "3000"
+          },
+          "toAccountNumber": {
+            "S": "123001-13330001"
+          },
+          "$version": {
+            "N": "1"
+          },
+          "transactionDate": {
+            "S": "2024-01-20"
+          },
+          "transactionId": {
+            "S": "70c0712e-276e-43d1-9dc4-db776cf24590"
+          },
+          "timeOfDay": {
+            "S": "15:23:01.0000000"
+          }
+        },
+        {
+          "transactionType": {
+            "S": "purchase"
+          },
+          "fromAccountNumber": {
+            "S": "123001-13330002"
+          },
+          "amount": {
+            "N": "49.46"
+          },
+          "$version": {
+            "N": "1"
+          },
+          "transactionDate": {
+            "S": "2024-01-27"
+          },
+          "transactionId": {
+            "S": "b3340941-f00e-4cc8-9d5f-8d07b3075f16"
+          },
+          "timeOfDay": {
+            "S": "18:55:08.0000000"
+          }
+        }
+      ]
+    },
+    {
+      "Table": "users",
+      "Items": [
+        {
+          "fullName": {
+            "S": "John Doe"
+          },
+          "userStatus": {
+            "S": "active"
+          },
+          "$version": {
+            "N": "1"
+          },
+          "userId": {
+            "S": "4f7e4ea9-c642-43da-9c8b-169dc6a03824"
+          },
+          "username": {
+            "S": "johndoe"
+          }
+        }
+      ]
+    },
+    {
+      "Table": "user-notifications",
+      "Items": [
+        {
+          "message": {
+            "S": "Your accounts will soon be available."
+          },
+          "userId": {
+            "S": "4f7e4ea9-c642-43da-9c8b-169dc6a03824"
+          },
+          "timestamp": {
+            "S": "2024-01-27T10:15:35.0000000+00:00"
+          }
+        }
+      ]
+    }
+  ]
+}

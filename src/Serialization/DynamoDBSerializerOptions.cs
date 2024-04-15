@@ -14,6 +14,7 @@ public record DynamoDBSerializerOptions
             new ParsableTypeConverter<DateTime> { Format = "o" },
             new ParsableTypeConverter<DateTimeOffset> { Format = "o" },
             new ParsableTypeConverter<Guid> { Format = "d" },
+            new ParsableTypeConverter<TimeOnly> { Format = "o" },
             new ParsableTypeConverter<TimeSpan> { Format = "c" },
             new EnumTypeConverter(),
             new JsonNodeTypeConverter()
