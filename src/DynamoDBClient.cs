@@ -383,16 +383,10 @@ public class DynamoDBClient : IDynamoDBClient
         }
     } 
 
-    class PartialResult<T> : IDynamoDBPartialResult<T> where T : class
+    class PartialResult<T>(T[] items, PrimaryKey<T> lastEvaluatedKey) : IDynamoDBPartialResult<T> where T : class
     {
-        T[] items;
-        PrimaryKey<T> lastEvaluatedKey;
-
-        public PartialResult(T[] items, PrimaryKey<T> lastEvaluatedKey)
-        {
-            this.items = items;
-            this.lastEvaluatedKey = lastEvaluatedKey;
-        }
+        readonly T[] items = items;
+        readonly PrimaryKey<T> lastEvaluatedKey = lastEvaluatedKey;
 
         public IEnumerator<T> GetEnumerator() => ((IEnumerable<T>)items).GetEnumerator();
 
@@ -405,17 +399,11 @@ public class DynamoDBClient : IDynamoDBClient
         public PrimaryKey<T> LastEvaluatedKey => lastEvaluatedKey;
     }
 
-    class WriteTransaction : IDynamoDBWriteTransaction
+    class WriteTransaction(DynamoDBClient dynamoDBClient) : IDynamoDBWriteTransaction
     {
-        DynamoDBClient dynamoDBClient;
-        List<TransactWriteItem> transactItems;
+        readonly DynamoDBClient dynamoDBClient = dynamoDBClient;
+        readonly List<TransactWriteItem> transactItems = [];
         bool isCommitted;
-
-        public WriteTransaction(DynamoDBClient dynamoDBClient)
-        {
-            this.dynamoDBClient = dynamoDBClient;
-            this.transactItems = new List<TransactWriteItem>();
-        }
 
         public IDynamoDBWriteTransaction Put<T>(T item, Expression<Func<T, bool>>? condition = null) where T : class =>
             Add(new TransactWriteItem { Put = this.dynamoDBClient.CreatePutOperation(item, condition) });

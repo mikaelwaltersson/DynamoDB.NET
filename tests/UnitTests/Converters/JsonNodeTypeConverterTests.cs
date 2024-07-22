@@ -32,20 +32,20 @@ public class JsonNodeTypeConverterTests
                     {
                         ["foo"] = new()
                         {
-                            L = new()
-                            {
+                            L =
+                            [
                                 new() { NULL = true },
                                 new() { BOOL = false },
                                 new() { BOOL = true },
                                 new() { N = "1" },
                                 new() { S = "2" },
                                 new() { SS = ["3", "4"] },
-                            }
+                            ]
                         },
                         ["bar"] = new() { B = new(Encoding.ASCII.GetBytes("HelloWorld")) }
                     }
                 },
-                typeof(JsonNode))
+                typeof(JsonObject))
                 .ToSnapshotFriendlyObject());
     }
 }

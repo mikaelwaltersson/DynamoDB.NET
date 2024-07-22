@@ -13,37 +13,38 @@ public class JsonNodeTypeConverter
     IConvertFromMap,
     IConvertToDynamoDBValue
 {
-    public override bool Handle(Type type) => type == typeof(JsonNode);
+    public override bool Handle(Type type) => 
+        typeof(JsonNode).IsAssignableFrom(type);
 
     public object? ConvertFromNull(Type toType) =>
         null;
 
     public object ConvertFromBoolean(bool value, Type toType) =>
-        JsonValue.Create(value);
+        TypeAssert.ForValue(JsonValue.Create(value), toType);
 
     public object ConvertFromString(string value, Type toType) =>
-        JsonValue.Create(value);
+        TypeAssert.ForValue(JsonValue.Create(value), toType);
 
     public object ConvertFromNumber(string value, Type toType) =>
-        JsonNode.Parse(value)!;
+        TypeAssert.ForValue(JsonNode.Parse(value)!, toType);
 
     public object ConvertFromBinary(MemoryStream value, Type toType) =>
-        JsonValue.Create(value.ToBase64String());
+        TypeAssert.ForValue(JsonValue.Create(value.ToBase64String()), toType);
 
     public object ConvertFromStringSet(ICollection<string> values, Type toType, IConvertFromString convertFromString) =>
-        new JsonArray(values.Select(value => JsonValue.Create(value)).ToArray());
+        TypeAssert.ForValue(new JsonArray(values.Select(value => JsonValue.Create(value)).ToArray()), toType);
 
     public object ConvertFromNumberSet(ICollection<string> values, Type toType, IConvertFromNumber convertFromNumber) =>
-        new JsonArray(values.Select(value => JsonNode.Parse(value)).ToArray());
+        TypeAssert.ForValue(new JsonArray(values.Select(value => JsonNode.Parse(value)).ToArray()), toType);
 
     public object ConvertFromBinarySet(ICollection<MemoryStream> values, Type toType, IConvertFromBinary convertFromBinary) =>
-        new JsonArray(values.Select(value => JsonValue.Create(value.ToBase64String())).ToArray());
+        TypeAssert.ForValue(new JsonArray(values.Select(value => JsonValue.Create(value.ToBase64String())).ToArray()), toType);
 
     public object ConvertFromList(List<AttributeValue> elements, Type toType, IDynamoDBSerializer serializer) =>
-        new JsonArray(elements.Select(serializer.DeserializeDynamoDBValue<JsonNode>).ToArray());
+        TypeAssert.ForValue(new JsonArray(elements.Select(serializer.DeserializeDynamoDBValue<JsonNode>).ToArray()), toType);
 
     public object ConvertFromMap(Dictionary<string, AttributeValue> entries, Type toType, IDynamoDBSerializer serializer) =>
-       new JsonObject(entries.Select(entry => new KeyValuePair<string, JsonNode?>(entry.Key, serializer.DeserializeDynamoDBValue<JsonNode>(entry.Value))));
+       TypeAssert.ForValue(new JsonObject(entries.Select(entry => new KeyValuePair<string, JsonNode?>(entry.Key, serializer.DeserializeDynamoDBValue<JsonNode>(entry.Value)))), toType);
 
     public AttributeValue ConvertToDynamoDBValue(object? value, Type fromType, IDynamoDBSerializer serializer) => 
         value switch
