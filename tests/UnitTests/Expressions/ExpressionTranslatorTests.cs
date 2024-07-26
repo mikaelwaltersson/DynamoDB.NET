@@ -84,7 +84,7 @@ public class ExpressionTranslatorTests
     {
         Assert.Equal(
             "contains(NumberSet, :v0)",  
-            ExpressionTranslator.Translate<Item>(item => item.NumberSet.Contains(123), context));
+            ExpressionTranslator.Translate<Item>(item => item.NumberSet!.Contains(123), context));
         Assert.True(
             context is { AttributeNames: null, AttributeValues.Count: 1 } &&
             context.AttributeValues[":v0"] is { N: "123" });
@@ -224,6 +224,23 @@ public class ExpressionTranslatorTests
     }
 
     [Fact]
+    public void TranslatesSetToEmptyAttributeValueAsRemove()
+    {
+        Assert.Equal(
+            "REMOVE NumberSet",  
+            ExpressionTranslator.Translate<Item>(item => Set(item.NumberSet, new()), context));
+        Assert.True(
+            context is { AttributeNames: null, AttributeValues: null });
+
+        Assert.Equal(
+            "SET NumberList = :v0\nREMOVE NumberSet",  
+            ExpressionTranslator.Translate<Item>(item => Set(item.NumberList, new()) & Set(item.NumberSet, new()), context));
+        Assert.True(
+            context is { AttributeNames: null, AttributeValues.Count: 1 } &&
+            context.AttributeValues[":v0"] is { IsLSet: true, L: [] });
+    }
+
+    [Fact]
     public void TranslatesSetToNullAsRemove()
     {
         Assert.Equal(
@@ -314,7 +331,7 @@ public class ExpressionTranslatorTests
         [DynamoDBProperty(SerializeNullValues = true)]
         public string? C2 { get; set; }
 
-        public SortedSet<int> NumberSet { get; set; } = [];
+        public SortedSet<int>? NumberSet { get; set; } = [];
 
         public List<int> NumberList { get; set; } = [];
 

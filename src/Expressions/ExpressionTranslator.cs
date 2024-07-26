@@ -588,7 +588,8 @@ public static class ExpressionTranslator
             DefaultDynamoDBTypeConverter.IsSerializedAttributeValue(
                 context.Serializer.GetPropertyAttributeInfo(property), 
                 property.GetPropertyType(), 
-                value);
+                value) &&
+            !context.Serializer.SerializeDynamoDBValue(value, property.GetPropertyType()).IsEmpty();
     }
 
     static class Identifier
